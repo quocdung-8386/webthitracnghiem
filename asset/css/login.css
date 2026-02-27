@@ -37,3 +37,28 @@ body { background-color: #f4f7f6; display: flex; justify-content: center; align-
 
 /* Khung báo lỗi ẩn mặc định */
 #errorMsg { display: none; background: #fed7d7; color: #c53030; padding: 10px; border-radius: 6px; font-size: 13px; margin-bottom: 20px; font-weight: bold; text-align: center;}
+
+.left-col-blue {
+    background-color: #1e40af; 
+    width: 45%; 
+    padding: 40px; 
+    display: flex; 
+    flex-direction: column; 
+    justify-content: center;
+    color: white;
+}
+.left-col-blue h2 { font-size: 32px; margin-bottom: 20px; line-height: 1.2;}
+.left-col-blue p { color: #bfdbfe; font-size: 14px; line-height: 1.6; margin-bottom: 30px;}
+.feature-item { display: flex; gap: 15px; margin-bottom: 20px; align-items: flex-start;}
+.feature-icon { background: rgba(255,255,255,0.2); padding: 10px; border-radius: 8px; font-size: 20px;}
+.feature-text h4 { margin-bottom: 5px; font-size: 15px;}
+.feature-text p { font-size: 13px; color: #bfdbfe; margin: 0;}
+.img-register { width: 100%; height: 250px; background: #cbd5e0; border-radius: 12px; margin-top: 20px; display: flex; justify-content: center; align-items: center; color: #4a5568;}
+
+/* Chia 2 cột cho Form nhập liệu */
+.form-row { display: flex; gap: 15px; margin-bottom: 20px;}
+.form-row .form-group { flex: 1; margin-bottom: 0; }
+.form-group select { width: 100%; padding: 12px 15px 12px 40px; border: 1px solid #e2e8f0; border-radius: 8px; outline: none; background: #f8fafc; appearance: none; font-weight: 500; color: #4a5568;}
+
+/* Thông báo thành công */
+#successMsg { display: none; background: #c6f6d5; color: #276749; padding: 10px; border-radius: 6px; font-size: 13px; margin-bottom: 20px; font-weight: bold; text-align: center;}
