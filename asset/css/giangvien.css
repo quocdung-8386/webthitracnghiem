@@ -1,15 +1,13 @@
-/* ========================================= */
 /* 1. RESET CSS CƠ BẢN                       */
-/* ========================================= */
+
 * {
     margin: 0; padding: 0; box-sizing: border-box;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 body { background-color: #f5f7fa; color: #333; }
 
-/* ========================================= */
 /* 2. BỐ CỤC CHÍNH (LAYOUT)                  */
-/* ========================================= */
+
 .app-container { display: flex; height: 100vh; }
 
 /* --- SIDEBAR (THANH BÊN TRÁI) --- */
@@ -44,9 +42,8 @@ button { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; 
 .btn-primary { background-color: #2563eb; color: #fff; }
 .btn-secondary { background-color: #edf2f7; color: #4a5568; }
 
-/* ========================================= */
 /* 3. BẢNG DỮ LIỆU & NHÃN (BADGE)            */
-/* ========================================= */
+
 .table-container { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 20px; }
 .data-table { width: 100%; border-collapse: collapse; text-align: left; }
 .data-table th { padding: 15px 10px; border-bottom: 2px solid #e2e8f0; color: #718096; font-size: 12px; }
@@ -61,9 +58,8 @@ button { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; 
 .icon-btn { background: none; font-size: 18px; margin-right: 10px; color: #4a5568; padding: 0; }
 .icon-btn:hover { color: #2563eb; }
 
-/* ========================================= */
 /* 4. HỘP THOẠI MODAL (THÊM CÂU HỎI)         */
-/* ========================================= */
+
 .modal {
     display: none; 
     position: fixed; z-index: 1000; left: 0; top: 0;
@@ -108,9 +104,8 @@ button { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; 
 }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
 
-/* ========================================= */
 /* 5. HIỆU ỨNG THÔNG BÁO (TOAST MESSAGE)     */
-/* ========================================= */
+
 .toast {
     position: fixed;
     bottom: 30px;
@@ -139,9 +134,7 @@ button { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; 
     transform: translateY(0);
 }
 
-/* ========================================= */
 /* 6. TRANG THIẾT LẬP ĐỀ THI (CSS GRID)      */
-/* ========================================= */
 
 .header-exam { align-items: center; }
 .breadcrumb { color: #718096; font-size: 13px; margin-bottom: 5px; }
@@ -183,9 +176,8 @@ input:checked + .slider:before { transform: translateX(20px); }
 .q-number { background: #f1f5f9; font-weight: bold; width: 30px; height: 30px; display: flex; justify-content: center; align-items: center; border-radius: 6px; color: #4a5568;}
 .q-content strong { color: #2d3748; display: block;}
 
-/* ========================================= */
 /* 7. TRANG BÁO CÁO THỐNG KÊ                 */
-/* ========================================= */
+
 .stat-cards-container {
     display: grid;
     grid-template-columns: repeat(4, 1fr);

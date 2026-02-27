@@ -1,0 +1,39 @@
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+body { background-color: #f4f7f6; display: flex; justify-content: center; align-items: center; min-height: 100vh; flex-direction: column;}
+
+.header-logo { position: absolute; top: 20px; left: 40px; font-size: 20px; font-weight: bold; color: #1e40af; display: flex; gap: 10px;}
+.top-right-nav { position: absolute; top: 20px; right: 40px; font-size: 14px; }
+.top-right-nav a { text-decoration: none; color: #2563eb; font-weight: bold; margin-left: 10px; }
+.btn-register-top { background: #2563eb; color: white !important; padding: 8px 15px; border-radius: 6px; }
+
+.login-container { background: #fff; width: 900px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); display: flex; overflow: hidden; }
+
+/* Cột bên trái */
+.left-col { background-color: #fdf6e3; width: 45%; padding: 40px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;}
+.img-placeholder { width: 200px; height: 150px; background: #4a5568; border-radius: 10px; margin-bottom: 20px; display: flex; justify-content: center; align-items: center; color: white; }
+.left-col h2 { color: #2d3748; margin-bottom: 10px; }
+.left-col p { color: #718096; font-size: 14px; line-height: 1.5; }
+
+/* Cột bên phải (Form) */
+.right-col { width: 55%; padding: 50px; display: flex; flex-direction: column; justify-content: center;}
+.right-col h1 { font-size: 28px; color: #1a202c; margin-bottom: 5px; }
+.right-col p { color: #718096; font-size: 14px; margin-bottom: 30px; }
+
+.form-group { margin-bottom: 20px; position: relative; }
+.form-group label { display: block; font-size: 13px; font-weight: bold; color: #4a5568; margin-bottom: 8px; }
+.form-group input[type="text"], .form-group input[type="password"] {
+    width: 100%; padding: 12px 15px 12px 40px; border: 1px solid #e2e8f0; border-radius: 8px; outline: none; background: #f8fafc;
+}
+.form-icon { position: absolute; left: 15px; top: 35px; color: #a0aec0; }
+.forgot-pw { position: absolute; right: 0; top: 0; font-size: 12px; color: #2563eb; text-decoration: none; font-weight: bold; }
+
+.remember-me { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #4a5568; margin-bottom: 20px; }
+
+.btn-submit { width: 100%; background: #2563eb; color: white; padding: 14px; border: none; border-radius: 8px; font-weight: bold; font-size: 15px; cursor: pointer; transition: 0.2s; }
+.btn-submit:hover { background: #1d4ed8; }
+
+.social-login { display: flex; gap: 15px; margin-top: 20px; }
+.btn-social { flex: 1; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; background: white; cursor: pointer; font-weight: bold; color: #4a5568; }
+
+/* Khung báo lỗi ẩn mặc định */
+#errorMsg { display: none; background: #fed7d7; color: #c53030; padding: 10px; border-radius: 6px; font-size: 13px; margin-bottom: 20px; font-weight: bold; text-align: center;}
