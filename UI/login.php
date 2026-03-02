@@ -9,18 +9,17 @@ if (isset($_SESSION['vai_tro']) && $_SESSION['vai_tro'] === 'giangvien') {
 $error_message = "";
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    
+
     $username = trim($_POST['username']);
     $password = trim($_POST['password']);
 
     // --- DỮ LIỆU GIẢ ĐĂNG NHẬP ---
     if ($username === 'giangvien' && $password === '123456') {
-        
         $_SESSION['vai_tro'] = 'giangvien';
         $_SESSION['ho_ten'] = 'GV. Nguyễn Văn A';
-        
-        // Đăng nhập thành công -> Chuyển hướng
-        header("Location: giangvien/quanlynganhangcauhoi.php");
+
+        // ĐỔI DÒNG NÀY: Trỏ về index.php (Trang Dashboard mới)
+        header("Location: giangvien/index.php");
         exit();
     }
     // Trường hợp sai tài khoản/mật khẩu
@@ -32,12 +31,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Đăng nhập - EduQuiz</title>
     <link rel="stylesheet" href="../asset/css/login.css">
 </head>
+
 <body>
 
     <div class="header-logo">🎓 EduQuiz</div>
@@ -61,7 +62,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     <?php echo $error_message; ?>
                 </div>
             <?php else: ?>
-                <div id="errorMsg"></div> 
+                <div id="errorMsg"></div>
             <?php endif; ?>
 
             <form action="" method="POST">
@@ -93,11 +94,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <button class="btn-social">Google</button>
                 <button class="btn-social">Facebook</button>
             </div>
-            
+
             <p style="text-align: center; margin-top: 25px; margin-bottom: 0;">
-                Bạn là thành viên mới? <a href="register.php" style="color: #2563eb; font-weight: bold; text-decoration: none;">Tạo tài khoản miễn phí</a>
+                Bạn là thành viên mới? <a href="register.php"
+                    style="color: #2563eb; font-weight: bold; text-decoration: none;">Tạo tài khoản miễn phí</a>
             </p>
         </div>
     </div>
 </body>
+
 </html>

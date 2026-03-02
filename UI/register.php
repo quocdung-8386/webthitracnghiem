@@ -12,27 +12,37 @@ if (isset($_SESSION['vai_tro'])) {
 }
 
 $fullname = $email = $phone = $role = "";
-$errors = []; 
+$errors = [];
 $success_message = "";
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
     // --- A. SANITIZE ---
     $fullname = htmlspecialchars(trim($_POST['fullname']));
-    $email    = htmlspecialchars(trim($_POST['email']));
-    $phone    = htmlspecialchars(trim($_POST['phone']));
-    $role     = $_POST['role'];
+    $email = htmlspecialchars(trim($_POST['email']));
+    $phone = htmlspecialchars(trim($_POST['phone']));
+    $role = $_POST['role'];
     $password = $_POST['password'];
     $confirm_password = $_POST['confirm_password'];
 
     // --- B. VALIDATION ---
-    
+
     // 1. Validate cơ bản
-    if (empty($fullname)) { $errors[] = "Vui lòng nhập họ và tên."; }
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) { $errors[] = "Email không đúng định dạng."; }
-    if (!preg_match('/^[0-9]{10,11}$/', $phone)) { $errors[] = "Số điện thoại không hợp lệ."; }
-    if (strlen($password) < 6) { $errors[] = "Mật khẩu phải có ít nhất 6 ký tự."; }
-    if ($password !== $confirm_password) { $errors[] = "Mật khẩu xác nhận không khớp."; }
+    if (empty($fullname)) {
+        $errors[] = "Vui lòng nhập họ và tên.";
+    }
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $errors[] = "Email không đúng định dạng.";
+    }
+    if (!preg_match('/^[0-9]{10,11}$/', $phone)) {
+        $errors[] = "Số điện thoại không hợp lệ.";
+    }
+    if (strlen($password) < 6) {
+        $errors[] = "Mật khẩu phải có ít nhất 6 ký tự.";
+    }
+    if ($password !== $confirm_password) {
+        $errors[] = "Mật khẩu xác nhận không khớp.";
+    }
 
     // 2. [TỐI ƯU BẢO MẬT] VALIDATE VAI TRÒ (WHITELIST CHECK)
     // Chỉ chấp nhận nếu role là 'thisinh' hoặc 'giangvien'
@@ -49,7 +59,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         if (empty($errors)) {
             $success_message = "Đăng ký thành công! Đang chuyển hướng đến trang đăng nhập...";
-            
+
             // Reset form
             $fullname = $email = $phone = "";
         }
@@ -88,8 +98,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 </div>
             </div>
             <div class="left-col-blue">
-                <img src="https://i.pinimg.com/1200x/88/49/00/88490055748805b6b9ef7b036fa13446.jpg" alt="EduQuiz Registration Illustration"
-                    class="img-register">
+                <img src="https://i.pinimg.com/1200x/88/49/00/88490055748805b6b9ef7b036fa13446.jpg"
+                    alt="EduQuiz Registration Illustration" class="img-register">
             </div>
         </div>
 
@@ -147,13 +157,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <div class="form-group">
                     <label>Mật khẩu</label>
                     <span class="form-icon">🔒</span>
-                    <input type="password" name="password" placeholder="••••••••">
+                    <input type="password" name="password" placeholder="********">
                 </div>
 
                 <div class="form-group">
                     <label>Xác nhận mật khẩu</label>
                     <span class="form-icon">🔒</span>
-                    <input type="password" name="confirm_password" placeholder="••••••••">
+                    <input type="password" name="confirm_password" placeholder="********">
                 </div>
 
                 <div class="remember-me" style="margin-top: 10px;">
@@ -174,9 +184,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // Kiểm tra xem PHP có in ra thông báo thành công không
         const successMsg = document.getElementById('successMsg');
         if (successMsg) {
-            setTimeout(function() {
+            setTimeout(function () {
                 window.location.href = 'login.php';
-            }, 2000); // Chờ 2 giây rồi chuyển
+            }, 2000);
         }
     </script>
 </body>
