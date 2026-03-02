@@ -59,21 +59,25 @@ $lichSuYeuCau = [
 </head>
 <body>
 
-    <nav class="navbar">
-       <div class="logo">
-                <h2>🎓 EduQuiz</h2>
-            </div>
+<nav class="navbar">
+        <a href="timkiemvathamgiathi.php" class="nav-brand">
+            <span class="nav-brand-icon">🎓</span> EduQuiz
+        </a>
+        
         <ul class="nav-links">
-            <li><a href="#">Trang chủ</a></li>
-            <li><a href="#">Kỳ thi của tôi</a></li>
-            <li class="active"><a href="#">Phúc khảo</a></li>
+            <li class="active"><a href="timkiemvathamgiathi.php">Trang chủ</a></li>
+            <li><a href="lambaithi.php">Kỳ thi của tôi</a></li>
+            <li><a href="xemketqua.php">Kết quả</a></li>
+            <li><a href="phuckhaokhieunai.php">Khiếu nại</a></li>
         </ul>
+        
         <div class="nav-user">
-            <span style="font-size: 20px; cursor:pointer; color: var(--text-muted);">🌙</span>
+            <span id="btnToggleTheme" style="font-size: 20px; cursor:pointer; color: var(--text-muted); margin-right: 15px;">🌙</span>
             <div class="user-info">
-                <span class="user-name"><?php echo $thongTinThiSinh['ten']; ?></span>
+                <span class="user-name">Nguyễn Văn An</span>
+                <span class="user-role">Thí sinh #12345</span>
             </div>
-            <img src="<?php echo $thongTinThiSinh['avatar']; ?>" alt="Avatar" class="avatar">
+            <img src="https://i.pravatar.cc/150?img=11" alt="Avatar" class="avatar" style="object-fit: cover;">
         </div>
     </nav>
 

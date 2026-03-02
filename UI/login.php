@@ -27,6 +27,33 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $error_message = "Tên đăng nhập hoặc mật khẩu không đúng!";
     }
 }
+ if ($username === 'thisinh' && $password === '123456') {
+        
+        $_SESSION['vai_tro'] = 'thisinh';
+        $_SESSION['ho_ten'] = 'TS. Trần Thị B';
+        
+        // Đăng nhập thành công -> Chuyển hướng
+        header("Location: thisinh/timkiemvathamgiathi.php");
+        exit();
+    }
+    // Trường hợp sai tài khoản/mật khẩu
+    else {
+        $error_message = "Tên đăng nhập hoặc mật khẩu không đúng!";
+    }
+    if ($username === 'admin' && $password === '123456') {
+        
+        $_SESSION['vai_tro'] = 'admin';
+        $_SESSION['ho_ten'] = 'Admin. Phạm Văn C';
+        
+        // Đăng nhập thành công -> Chuyển hướng
+        header("Location: admin/bangdieukhientongquan.php");
+        exit();
+    }
+    // Trường hợp sai tài khoản/mật khẩu
+    else {
+        $error_message = "Tên đăng nhập hoặc mật khẩu không đúng!";
+    }
+
 ?>
 
 <!DOCTYPE html>
