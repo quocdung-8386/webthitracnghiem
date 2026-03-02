@@ -53,7 +53,12 @@ body { background-color: #f4f7f6; display: flex; justify-content: center; align-
 .feature-icon { background: rgba(255,255,255,0.2); padding: 10px; border-radius: 8px; font-size: 20px;}
 .feature-text h4 { margin-bottom: 5px; font-size: 15px;}
 .feature-text p { font-size: 13px; color: #bfdbfe; margin: 0;}
-.img-register { width: 100%; height: 250px; background: #cbd5e0; border-radius: 12px; margin-top: 20px; display: flex; justify-content: center; align-items: center; color: #4a5568;}
+.img-register {
+    width: 100%;
+    height: auto;
+    margin-top: 30px;
+    display: block; 
+}
 
 /* Chia 2 cột cho Form nhập liệu */
 .form-row { display: flex; gap: 15px; margin-bottom: 20px;}
@@ -62,3 +67,4 @@ body { background-color: #f4f7f6; display: flex; justify-content: center; align-
 
 /* Thông báo thành công */
 #successMsg { display: none; background: #c6f6d5; color: #276749; padding: 10px; border-radius: 6px; font-size: 13px; margin-bottom: 20px; font-weight: bold; text-align: center;}
+
