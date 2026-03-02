@@ -57,9 +57,9 @@ $is_report_active = in_array($active_menu, $group_report);
             <div id="menu-bank" class="<?php echo $is_bank_active ? 'block' : 'hidden'; ?> pl-11 pr-3 py-1 mt-1 space-y-1 overflow-hidden transition-all">
                 <a href="danhsachcauhoi.php" class="block py-2 px-3 -ml-3 rounded-lg text-sm transition-all <?php echo ($active_menu == 'update_q') ? 'bg-white/20 text-white font-medium' : 'text-blue-200 hover:text-white hover:bg-white/10'; ?>">Cập nhật câu hỏi</a>
                 <a href="phanloaicauhoi.php" class="block py-2 px-3 -ml-3 rounded-lg text-sm transition-all <?php echo ($active_menu == 'category_q') ? 'bg-white/20 text-white font-medium' : 'text-blue-200 hover:text-white hover:bg-white/10'; ?>">Phân loại câu hỏi</a>
-                <a href="#" class="block py-2 px-3 -ml-3 rounded-lg text-sm transition-all text-blue-200 hover:text-white hover:bg-white/10">Nhập/Xuất câu hỏi</a>
-                <a href="#" class="block py-2 px-3 -ml-3 rounded-lg text-sm transition-all text-blue-200 hover:text-white hover:bg-white/10">Quản lý phiên bản</a>
-                <a href="#" class="block py-2 px-3 -ml-3 rounded-lg text-sm transition-all text-blue-200 hover:text-white hover:bg-white/10">Duyệt câu hỏi</a>
+                <a href="nhapxuatcauhoi.php" class="block py-2 px-3 -ml-3 rounded-lg text-sm transition-all <?php echo ($active_menu == 'import_q') ? 'bg-white/20 text-white font-medium' : 'text-blue-200 hover:text-white hover:bg-white/10'; ?>">Nhập/Xuất câu hỏi</a>
+                <a href="quanlyphienban.php" class="block py-2 px-3 -ml-3 rounded-lg text-sm transition-all <?php echo ($active_menu == 'version') ? 'bg-white/20 text-white font-medium' : 'text-blue-200 hover:text-white hover:bg-white/10'; ?>">Quản lý phiên bản</a>
+                <a href="duyetcauhoi.php" class="block py-2 px-3 -ml-3 rounded-lg text-sm transition-all <?php echo ($active_menu == 'approve_q') ? 'bg-white/20 text-white font-medium' : 'text-blue-200 hover:text-white hover:bg-white/10'; ?>">Duyệt câu hỏi</a>
             </div>
         </div>
 
@@ -70,9 +70,9 @@ $is_report_active = in_array($active_menu, $group_report);
             </div>
             
             <div id="menu-exam" class="<?php echo $is_exam_active ? 'block' : 'hidden'; ?> pl-11 pr-3 py-1 mt-1 space-y-1 overflow-hidden transition-all">
-                <a href="#" class="block py-2 px-3 -ml-3 rounded-lg text-sm transition-all text-blue-200 hover:text-white hover:bg-white/10">Tạo đề thi</a>
-                <a href="#" class="block py-2 px-3 -ml-3 rounded-lg text-sm transition-all text-blue-200 hover:text-white hover:bg-white/10">Quản lý ca thi</a>
-                <a href="#" class="block py-2 px-3 -ml-3 rounded-lg text-sm transition-all text-blue-200 hover:text-white hover:bg-white/10">Giám sát trực tuyến</a>
+                <a href="taodethi.php" class="block py-2 px-3 -ml-3 rounded-lg text-sm transition-all text-blue-200 hover:text-white hover:bg-white/10">Tạo đề thi</a>
+                <a href="quanlycathi.php" class="block py-2 px-3 -ml-3 rounded-lg text-sm transition-all text-blue-200 hover:text-white hover:bg-white/10">Quản lý ca thi</a>
+                <a href="giamsattructuyen.php" class="block py-2 px-3 -ml-3 rounded-lg text-sm transition-all text-blue-200 hover:text-white hover:bg-white/10">Giám sát trực tuyến</a>
             </div>
         </div>
         
@@ -83,7 +83,7 @@ $is_report_active = in_array($active_menu, $group_report);
             </div>
             
             <div id="menu-candidate" class="<?php echo $is_candidate_active ? 'block' : 'hidden'; ?> pl-11 pr-3 py-1 mt-1 space-y-1 overflow-hidden transition-all">
-                <a href="#" class="block py-2 px-3 -ml-3 rounded-lg text-sm transition-all text-blue-200 hover:text-white hover:bg-white/10">Thực hiện bài thi</a>
+                <a href="#" class="block py-2 px-3 -ml-3 rounded-lg text-sm transition-all text-blue-200 hover:text-white hover:bg-white/10">Danh sách thí sinh</a>
                 <a href="#" class="block py-2 px-3 -ml-3 rounded-lg text-sm transition-all text-blue-200 hover:text-white hover:bg-white/10">Kết quả & Lời giải</a>
                 <a href="#" class="block py-2 px-3 -ml-3 rounded-lg text-sm transition-all text-blue-200 hover:text-white hover:bg-white/10">Quản lý tiến trình</a>
                 <a href="#" class="block py-2 px-3 -ml-3 rounded-lg text-sm transition-all text-blue-200 hover:text-white hover:bg-white/10">Thanh điều hướng</a>
