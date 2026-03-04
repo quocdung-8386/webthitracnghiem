@@ -12,40 +12,9 @@ for($i=1; $i<=11; $i++) { $trangThaiCauHoi[$i] = 1; }
 $trangThaiCauHoi[4] = 3; 
 $trangThaiCauHoi[12] = 2; 
 
-$thongTinThiSinh = ['ten' => 'Nguyễn Văn A', 'id' => '10293', 'mon_hoc' => 'Công nghệ phần mềm', 'trang_thai' => 'Đang thực hiện'];
+// 1. GỌI HEADER VÀO TRANG
+include 'header.php';
 ?>
-
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Làm bài thi</title>
-    <link rel="stylesheet" href="../../asset/css/thisinh.css">
-</head>
-<body>
-
-   <nav class="navbar">
-        <a href="timkiemvathamgiathi.php" class="nav-brand">
-            <span class="nav-brand-icon">🎓</span> EduQuiz
-        </a>
-        
-        <ul class="nav-links">
-            <li class="active"><a href="timkiemvathamgiathi.php">Trang chủ</a></li>
-            <li><a href="lambaithi.php">Kỳ thi của tôi</a></li>
-            <li><a href="xemketqua.php">Kết quả</a></li>
-            <li><a href="phuckhaokhieunai.php">Khiếu nại</a></li>
-        </ul>
-        
-        <div class="nav-user">
-            <span id="btnToggleTheme" style="font-size: 20px; cursor:pointer; color: var(--text-muted); margin-right: 15px;">🌙</span>
-            <div class="user-info">
-                <span class="user-name">Nguyễn Văn An</span>
-                <span class="user-role">Thí sinh #12345</span>
-            </div>
-            <img src="https://i.pravatar.cc/150?img=11" alt="Avatar" class="avatar" style="object-fit: cover;">
-        </div>
-    </nav>
 
 <div class="main-container">
     <header class="card header-bar">
@@ -68,7 +37,6 @@ $thongTinThiSinh = ['ten' => 'Nguyễn Văn A', 'id' => '10293', 'mon_hoc' => 'C
         </div>
 
         <div>
-            <span id="btnToggleTheme" style="font-size: 20px; cursor:pointer; margin-right: 16px;">🌙</span>
             <button style="background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer;">
                 Nộp bài ➤
             </button>
@@ -140,6 +108,7 @@ $thongTinThiSinh = ['ten' => 'Nguyễn Văn A', 'id' => '10293', 'mon_hoc' => 'C
     </div>
 </div>
 
-<script src="../../asset/js/thisinh.js"></script>
-</body>
-</html>
+<?php
+// 2. GỌI FOOTER VÀO TRANG
+include 'footer.php';
+?>

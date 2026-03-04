@@ -1,6 +1,7 @@
 <?php
 session_start();
 
+<<<<<<< HEAD
 // 1. CHẶN NGƯỜI ĐÃ ĐĂNG NHẬP
 if (isset($_SESSION['vai_tro'])) {
     if ($_SESSION['vai_tro'] === 'giangvien') {
@@ -8,22 +9,67 @@ if (isset($_SESSION['vai_tro'])) {
     } else {
         header("Location: thisinh/index.php");
     }
+=======
+// Nếu đã đăng nhập thì đẩy về đúng trang theo vai trò
+if (isset($_SESSION['vai_tro'])) {
+    if ($_SESSION['vai_tro'] === 'giangvien') header("Location: giangvien/quanlynganhangcauhoi.php");
+    elseif ($_SESSION['vai_tro'] === 'thisinh') header("Location: thisinh/timkiemvathamgiathi.php");
+    elseif ($_SESSION['vai_tro'] === 'admin') header("Location: admin/bangdieukhientongquan.php");
+>>>>>>> 2481e320fa734671156706b074624f8f3a319369
     exit();
 }
 
 $error_message = "";
 
+// Xử lý khi người dùng bấm nút Đăng nhập
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $username = trim($_POST['username']);
     $password = trim($_POST['password']);
 
-    // --- DỮ LIỆU GIẢ ĐĂNG NHẬP ---
+    // --- 1. DỮ LIỆU GIẢ ĐĂNG NHẬP: GIẢNG VIÊN ---
     if ($username === 'giangvien' && $password === '123456') {
         $_SESSION['vai_tro'] = 'giangvien';
         $_SESSION['ho_ten'] = 'GV. Nguyễn Văn A';
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+        header("Location: giangvien/quanlynganhangcauhoi.php");
+=======
+
+        // ĐỔI DÒNG NÀY: Trỏ về index.php (Trang Dashboard mới)
+>>>>>>> 2481e320fa734671156706b074624f8f3a319369
         header("Location: giangvien/index.php");
+>>>>>>> 02eacd2636dec01f738054a05a1f716bc981730a
         exit();
+<<<<<<< HEAD
     } else {
+=======
+    }
+    // --- 2. DỮ LIỆU GIẢ ĐĂNG NHẬP: THÍ SINH ---
+    elseif ($username === 'thisinh' && $password === '123456') {
+        $_SESSION['vai_tro'] = 'thisinh';
+        $_SESSION['ho_ten'] = 'Trần Thị B';
+        
+        // Gán thêm mảng 'user' để file header.php ở thư mục thisinh/ đọc được và hiện Avatar
+        $_SESSION['user'] = [
+            'ten' => 'Trần Thị B',
+            'id' => '#98765',
+            'avatar' => 'https://i.pravatar.cc/150?img=5'
+        ];
+        
+        header("Location: thisinh/timkiemvathamgiathi.php");
+        exit();
+    }
+    // --- 3. DỮ LIỆU GIẢ ĐĂNG NHẬP: ADMIN ---
+    elseif ($username === 'admin' && $password === '123456') {
+        $_SESSION['vai_tro'] = 'admin';
+        $_SESSION['ho_ten'] = 'Admin. Phạm Văn C';
+        header("Location: admin/bangdieukhientongquan.php");
+        exit();
+    }
+    // --- SAI TÀI KHOẢN ---
+    else {
+>>>>>>> 2481e320fa734671156706b074624f8f3a319369
         $error_message = "Tên đăng nhập hoặc mật khẩu không đúng!";
     }
 }
@@ -34,6 +80,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<<<<<<< HEAD
     <title>Đăng nhập - Hệ thống thi trắc nghiệm</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -41,9 +88,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
         .bg-gradient-blue { background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); }
     </style>
+=======
+    <title>Đăng nhập - Hệ Thống Thi Trực Tuyến</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="../asset/css/login.css">
+>>>>>>> 2481e320fa734671156706b074624f8f3a319369
 </head>
 <body class="min-h-screen flex flex-col">
 
+<<<<<<< HEAD
     <header class="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex justify-between items-center">
             <div class="flex items-center space-x-2 text-blue-700 font-bold text-lg">
@@ -51,6 +104,59 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L1 9l11 7 11-7-11-7z"/><path d="M1 19l11 7 11-7M1 14l11 7 11-7"/></svg>
                 </div>
                 <span>Hệ thống thi trắc nghiệm</span>
+=======
+<body>
+    <div class="header-logo" style="display: flex; align-items: center; gap: 8px;">
+        <span class="material-icons" style="color: #2563eb;">school</span> Hệ Thống Thi Trực Tuyến
+    </div>
+    <div class="top-right-nav">
+        Đăng nhập <a href="register.php" class="btn-register-top">Đăng ký</a>
+    </div>
+
+    <div class="login-container">
+        <div class="left-col">
+            <div class="img-placeholder">📺 Hình minh họa</div>
+            <h2>Trải nghiệm học tập mới</h2>
+            <p>Hệ thống thi trắc nghiệm trực tuyến thông minh, giúp bạn đánh giá năng lực một cách chính xác nhất.</p>
+        </div>
+
+        <div class="right-col">
+            <h1>Chào mừng trở lại</h1>
+            <p>Vui lòng nhập thông tin để tiếp tục bài thi của bạn</p>
+
+            <?php if (!empty($error_message)): ?>
+                <div id="errorMsg" style="display: block; color: #dc2626; background: #fee2e2; padding: 10px; border-radius: 8px; margin-bottom: 20px; font-size: 14px;">
+                    <?php echo $error_message; ?>
+                </div>
+            <?php else: ?>
+                <div id="errorMsg"></div>
+            <?php endif; ?>
+
+            <form action="" method="POST">
+                <div class="form-group">
+                    <label>Email hoặc Tên đăng nhập</label>
+                    <span class="form-icon">✉️</span>
+                    <input type="text" name="username" placeholder="Nhập tên đăng nhập (VD: thisinh)" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Mật khẩu</label>
+                    <a href="#" class="forgot-pw">Quên mật khẩu?</a>
+                    <span class="form-icon">🔒</span>
+                    <input type="password" name="password" placeholder="Nhập mật khẩu (VD: 123456)" required>
+                </div>
+
+                <div class="remember-me">
+                    <input type="checkbox" id="remember">
+                    <label for="remember">Ghi nhớ phiên đăng nhập</label>
+                </div>
+
+                <button type="submit" class="btn-submit">Đăng nhập ngay →</button>
+            </form>
+
+            <div style="text-align: center; margin: 20px 0; color: #a0aec0; font-size: 12px; position: relative;">
+                HOẶC TIẾP TỤC VỚI
+>>>>>>> 2481e320fa734671156706b074624f8f3a319369
             </div>
             <div class="flex items-center space-x-3">
                 <span class="text-sm text-gray-400 hidden sm:inline">Chưa có tài khoản?</span>
