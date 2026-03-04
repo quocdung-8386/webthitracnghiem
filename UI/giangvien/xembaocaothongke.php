@@ -1,12 +1,10 @@
 <?php
 session_start();
-
 if (!isset($_SESSION['vai_tro']) || $_SESSION['vai_tro'] !== 'giangvien') {
     header("Location: ../login.php");
     exit();
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -19,18 +17,24 @@ if (!isset($_SESSION['vai_tro']) || $_SESSION['vai_tro'] !== 'giangvien') {
 
 <div class="app-container">
     <aside class="sidebar">
-        <div class="logo"><h2>🎓 EduQuiz</h2></div>
-        <ul class="nav-menu">
-            <li><a href="quanlynganhangcauhoi.php">Ngân hàng câu hỏi</a></li>
-            <li><a href="taodethi.php">Quản lý Đề thi</a></li>
-            <li class="active"><a href="#">Báo cáo thống kê</a></li>
-        </ul>
-        <div class="user-profile">
-            <div class="avatar">👤</div>
-            <div class="info">
-                <strong>GV. Nguyễn Văn A</strong>
-                <span>Giáo viên</span>
+        <div>
+            <div class="logo">
+                <h2 style="display:flex; align-items:center; gap:10px;">📘 <span>EduQuiz</span></h2>
             </div>
+            <ul class="nav-menu">
+                <li><a href="index.php">📊 Tổng quan</a></li>
+                <li><a href="quanlynganhangcauhoi.php">📝 Ngân hàng câu hỏi</a></li>
+                <li><a href="taodethi.php">⚙️ Quản lý Đề thi</a></li>
+                <li><a href="#">✍️ Chấm bài tự luận</a></li>
+                <li class="active"><a href="xembaocaothongke.php">📈 Thống kê & Báo cáo</a></li>
+            </ul>
+        </div>
+        <div class="sidebar-footer">
+            <div style="margin-bottom: 15px; display:flex; gap:10px; align-items:center;">
+                <span style="font-size: 20px;">🌙</span>
+                <span style="font-size: 13px; color:#718096;">Chế độ tối</span>
+            </div>
+            <a href="../logout.php" class="btn-logout-sidebar">🚪 <span>Đăng xuất</span></a>
         </div>
     </aside>
 
@@ -83,7 +87,6 @@ if (!isset($_SESSION['vai_tro']) || $_SESSION['vai_tro'] !== 'giangvien') {
                     <select class="filter-select">
                         <option>Tất cả Đề thi</option>
                         <option>Thi giữa kỳ Toán Cao Cấp</option>
-                        <option>Kiểm tra 15p Vật lý 1</option>
                     </select>
                 </div>
             </div>
@@ -108,7 +111,7 @@ if (!isset($_SESSION['vai_tro']) || $_SESSION['vai_tro'] !== 'giangvien') {
                         <td><strong style="color: #276749; font-size: 16px;">9.0</strong> / 10</td>
                         <td class="text-gray">15/05/2023 - 09:45</td>
                         <td><span class="badge badge-easy">ĐẠT</span></td>
-                        <td><button class="icon-btn" title="Xem chi tiết bài làm">👁️</button></td>
+                        <td><button class="icon-btn">👁️</button></td>
                     </tr>
                     <tr>
                         <td class="text-gray">SV2023045</td>
@@ -117,16 +120,7 @@ if (!isset($_SESSION['vai_tro']) || $_SESSION['vai_tro'] !== 'giangvien') {
                         <td><strong style="color: #c53030; font-size: 16px;">4.5</strong> / 10</td>
                         <td class="text-gray">15/05/2023 - 09:50</td>
                         <td><span class="badge badge-hard">TRƯỢT</span></td>
-                        <td><button class="icon-btn" title="Xem chi tiết bài làm">👁️</button></td>
-                    </tr>
-                    <tr>
-                        <td class="text-gray">SV2023088</td>
-                        <td><strong>Nguyễn Hữu Trí</strong></td>
-                        <td>Kiểm tra 15p Vật lý 1</td>
-                        <td><strong style="color: #276749; font-size: 16px;">8.0</strong> / 10</td>
-                        <td class="text-gray">16/05/2023 - 14:12</td>
-                        <td><span class="badge badge-easy">ĐẠT</span></td>
-                        <td><button class="icon-btn" title="Xem chi tiết bài làm">👁️</button></td>
+                        <td><button class="icon-btn">👁️</button></td>
                     </tr>
                 </tbody>
             </table>
