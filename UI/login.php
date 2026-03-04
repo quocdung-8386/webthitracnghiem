@@ -13,7 +13,7 @@ $error_message = "";
 
 // Xử lý khi người dùng bấm nút Đăng nhập
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    
+
     $username = trim($_POST['username']);
     $password = trim($_POST['password']);
 
@@ -21,7 +21,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if ($username === 'giangvien' && $password === '123456') {
         $_SESSION['vai_tro'] = 'giangvien';
         $_SESSION['ho_ten'] = 'GV. Nguyễn Văn A';
+<<<<<<< HEAD
         header("Location: giangvien/quanlynganhangcauhoi.php");
+=======
+
+        // ĐỔI DÒNG NÀY: Trỏ về index.php (Trang Dashboard mới)
+        header("Location: giangvien/index.php");
+>>>>>>> 02eacd2636dec01f738054a05a1f716bc981730a
         exit();
     }
     // --- 2. DỮ LIỆU GIẢ ĐĂNG NHẬP: THÍ SINH ---
@@ -55,6 +61,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -62,6 +69,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="stylesheet" href="../asset/css/login.css">
 </head>
+
 <body>
     <div class="header-logo" style="display: flex; align-items: center; gap: 8px;">
         <span class="material-icons" style="color: #2563eb;">school</span> Hệ Thống Thi Trực Tuyến
@@ -86,7 +94,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     <?php echo $error_message; ?>
                 </div>
             <?php else: ?>
-                <div id="errorMsg"></div> 
+                <div id="errorMsg"></div>
             <?php endif; ?>
 
             <form action="" method="POST">
@@ -118,11 +126,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <button class="btn-social">Google</button>
                 <button class="btn-social">Facebook</button>
             </div>
-            
+
             <p style="text-align: center; margin-top: 25px; margin-bottom: 0;">
-                Bạn là thành viên mới? <a href="register.php" style="color: #2563eb; font-weight: bold; text-decoration: none;">Tạo tài khoản miễn phí</a>
+                Bạn là thành viên mới? <a href="register.php"
+                    style="color: #2563eb; font-weight: bold; text-decoration: none;">Tạo tài khoản miễn phí</a>
             </p>
         </div>
     </div>
 </body>
+
 </html>
