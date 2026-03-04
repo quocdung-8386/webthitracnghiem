@@ -1,60 +1,56 @@
 <?php
 session_start();
 
-if (isset($_SESSION['vai_tro']) && $_SESSION['vai_tro'] === 'giangvien') {
-    header("Location: giangvien/quanlynganhangcauhoi.php");
+// Nếu đã đăng nhập thì đẩy về đúng trang theo vai trò
+if (isset($_SESSION['vai_tro'])) {
+    if ($_SESSION['vai_tro'] === 'giangvien') header("Location: giangvien/quanlynganhangcauhoi.php");
+    elseif ($_SESSION['vai_tro'] === 'thisinh') header("Location: thisinh/timkiemvathamgiathi.php");
+    elseif ($_SESSION['vai_tro'] === 'admin') header("Location: admin/bangdieukhientongquan.php");
     exit();
 }
 
 $error_message = "";
 
+// Xử lý khi người dùng bấm nút Đăng nhập
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     
     $username = trim($_POST['username']);
     $password = trim($_POST['password']);
 
-    // --- DỮ LIỆU GIẢ ĐĂNG NHẬP ---
+    // --- 1. DỮ LIỆU GIẢ ĐĂNG NHẬP: GIẢNG VIÊN ---
     if ($username === 'giangvien' && $password === '123456') {
-        
         $_SESSION['vai_tro'] = 'giangvien';
         $_SESSION['ho_ten'] = 'GV. Nguyễn Văn A';
-        
-        // Đăng nhập thành công -> Chuyển hướng
         header("Location: giangvien/quanlynganhangcauhoi.php");
         exit();
     }
-    // Trường hợp sai tài khoản/mật khẩu
+    // --- 2. DỮ LIỆU GIẢ ĐĂNG NHẬP: THÍ SINH ---
+    elseif ($username === 'thisinh' && $password === '123456') {
+        $_SESSION['vai_tro'] = 'thisinh';
+        $_SESSION['ho_ten'] = 'Trần Thị B';
+        
+        // Gán thêm mảng 'user' để file header.php ở thư mục thisinh/ đọc được và hiện Avatar
+        $_SESSION['user'] = [
+            'ten' => 'Trần Thị B',
+            'id' => '#98765',
+            'avatar' => 'https://i.pravatar.cc/150?img=5'
+        ];
+        
+        header("Location: thisinh/timkiemvathamgiathi.php");
+        exit();
+    }
+    // --- 3. DỮ LIỆU GIẢ ĐĂNG NHẬP: ADMIN ---
+    elseif ($username === 'admin' && $password === '123456') {
+        $_SESSION['vai_tro'] = 'admin';
+        $_SESSION['ho_ten'] = 'Admin. Phạm Văn C';
+        header("Location: admin/bangdieukhientongquan.php");
+        exit();
+    }
+    // --- SAI TÀI KHOẢN ---
     else {
         $error_message = "Tên đăng nhập hoặc mật khẩu không đúng!";
     }
 }
- if ($username === 'thisinh' && $password === '123456') {
-        
-        $_SESSION['vai_tro'] = 'thisinh';
-        $_SESSION['ho_ten'] = 'TS. Trần Thị B';
-        
-        // Đăng nhập thành công -> Chuyển hướng
-        header("Location: thisinh/timkiemvathamgiathi.php");
-        exit();
-    }
-    // Trường hợp sai tài khoản/mật khẩu
-    else {
-        $error_message = "Tên đăng nhập hoặc mật khẩu không đúng!";
-    }
-    if ($username === 'admin' && $password === '123456') {
-        
-        $_SESSION['vai_tro'] = 'admin';
-        $_SESSION['ho_ten'] = 'Admin. Phạm Văn C';
-        
-        // Đăng nhập thành công -> Chuyển hướng
-        header("Location: admin/bangdieukhientongquan.php");
-        exit();
-    }
-    // Trường hợp sai tài khoản/mật khẩu
-    else {
-        $error_message = "Tên đăng nhập hoặc mật khẩu không đúng!";
-    }
-
 ?>
 
 <!DOCTYPE html>
@@ -62,12 +58,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đăng nhập - EduQuiz</title>
+    <title>Đăng nhập - Hệ Thống Thi Trực Tuyến</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="stylesheet" href="../asset/css/login.css">
 </head>
 <body>
-
-    <div class="header-logo">🎓 EduQuiz</div>
+    <div class="header-logo" style="display: flex; align-items: center; gap: 8px;">
+        <span class="material-icons" style="color: #2563eb;">school</span> Hệ Thống Thi Trực Tuyến
+    </div>
     <div class="top-right-nav">
         Đăng nhập <a href="register.php" class="btn-register-top">Đăng ký</a>
     </div>
@@ -84,7 +82,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <p>Vui lòng nhập thông tin để tiếp tục bài thi của bạn</p>
 
             <?php if (!empty($error_message)): ?>
-                <div id="errorMsg" style="display: block;">
+                <div id="errorMsg" style="display: block; color: #dc2626; background: #fee2e2; padding: 10px; border-radius: 8px; margin-bottom: 20px; font-size: 14px;">
                     <?php echo $error_message; ?>
                 </div>
             <?php else: ?>
@@ -95,7 +93,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <div class="form-group">
                     <label>Email hoặc Tên đăng nhập</label>
                     <span class="form-icon">✉️</span>
-                    <input type="text" name="username" placeholder="Nhập tên đăng nhập (VD: giangvien)" required>
+                    <input type="text" name="username" placeholder="Nhập tên đăng nhập (VD: thisinh)" required>
                 </div>
 
                 <div class="form-group">
