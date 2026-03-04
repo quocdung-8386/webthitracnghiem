@@ -111,7 +111,7 @@ $is_report_active = in_array($active_menu, $group_report);
             <p class="text-sm font-semibold truncate">Admin User</p>
             <p class="text-[11px] text-blue-300 truncate">admin@system.edu.vn</p>
         </div>
-        <a href="../login.php" title="Đăng xuất" class="text-blue-300 hover:text-white transition-colors p-1.5 rounded-md hover:bg-white/10">
+        <a href="../logout.php" title="Đăng xuất" class="text-blue-300 hover:text-white transition-colors p-1.5 rounded-md hover:bg-white/10">
             <span class="material-icons text-[20px]">login</span>
         </a>
     </div>

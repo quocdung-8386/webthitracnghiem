@@ -1,43 +1,202 @@
 <?php
-// 1. Cấu hình thông tin trang
+session_start();
+date_default_timezone_set('Asia/Ho_Chi_Minh');
+
+/* Bật debug (ổn định rồi thì tắt) */
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+
+/* Kiểm tra đăng nhập & đúng vai trò admin */
+if (!isset($_SESSION['vai_tro']) || $_SESSION['vai_tro'] !== 'admin') {
+    header("Location: /webthitracnghiem/UI/login.php");
+    exit();
+}
+
+/* 1. Cấu hình trang */
 $title = "Bảng Điều Khiển Tổng Quan - Hệ Thống Thi Trực Tuyến";
 $active_menu = "dashboard";
 
-// Dữ liệu mô phỏng cho 4 thẻ thống kê
+require_once __DIR__ . '/../../app/config/Database.php';
+$conn = Database::getConnection();
+
+/* ============================= */
+/* 1. Tổng số thí sinh */
+/* ============================= */
+$stmt = $conn->query("
+    SELECT COUNT(*) 
+    FROM nguoi_dung nd
+    JOIN vai_tro vt ON nd.ma_vai_tro = vt.ma_vai_tro
+    WHERE vt.ten_vai_tro = 'thi_sinh'
+");
+$tong_thi_sinh = $stmt->fetchColumn();
+
+/* ============================= */
+/* 2. Tổng số giảng viên */
+/* ============================= */
+$stmt = $conn->query("
+    SELECT COUNT(*) 
+    FROM nguoi_dung nd
+    JOIN vai_tro vt ON nd.ma_vai_tro = vt.ma_vai_tro
+    WHERE vt.ten_vai_tro = 'giang_vien'
+");
+$tong_giang_vien = $stmt->fetchColumn();
+
+/* ============================= */
+/* 3. Tổng số đề thi */
+/* ============================= */
+$stmt = $conn->query("SELECT COUNT(*) FROM de_thi");
+$tong_de_thi = $stmt->fetchColumn();
+
+/* ============================= */
+/* 4. Ca thi đang diễn ra */
+/* ============================= */
+$stmt = $conn->query("
+    SELECT COUNT(*) 
+    FROM ca_thi
+    WHERE NOW() BETWEEN thoi_gian_bat_dau AND thoi_gian_ket_thuc
+");
+$ca_thi_dang_dien_ra = $stmt->fetchColumn();
+
+/* ============================= */
+/* 5. Tổng bài làm đã nộp */
+/* ============================= */
+$stmt = $conn->query("
+    SELECT COUNT(*) 
+    FROM bai_lam
+    WHERE trang_thai IN ('da_nop','da_cham')
+");
+$tong_bai_lam = $stmt->fetchColumn();
+
+/* ============================= */
+/* 6. Tổng câu hỏi */
+/* ============================= */
+$stmt = $conn->query("SELECT COUNT(*) FROM cau_hoi");
+$tong_cau_hoi = $stmt->fetchColumn();
+
 $stats = [
-    ['title' => 'Tổng số thí sinh', 'value' => '12,450', 'icon' => 'people', 'color' => 'blue', 'badge' => '+12%', 'badge_color' => 'bg-green-100 text-green-700'],
-    ['title' => 'Kỳ thi đang diễn ra', 'value' => '8', 'icon' => 'event_note', 'color' => 'orange', 'badge' => 'Hôm nay', 'badge_color' => 'bg-slate-100 text-slate-600'],
-    ['title' => 'Ngân hàng câu hỏi', 'value' => '45,800', 'icon' => 'quiz', 'color' => 'purple', 'badge' => '', 'badge_color' => ''],
-    ['title' => 'Bài thi đã hoàn thành', 'value' => '8,230', 'icon' => 'task_alt', 'color' => 'green', 'badge' => '98%', 'badge_color' => 'bg-green-100 text-green-700']
+    [
+        'title' => 'Thí sinh',
+        'value' => number_format($tong_thi_sinh),
+        'color' => 'blue',
+        'icon'  => 'groups',
+        'badge' => null,
+        'badge_color' => null
+    ],
+    [
+        'title' => 'Giảng viên',
+        'value' => number_format($tong_giang_vien),
+        'color' => 'green',
+        'icon'  => 'school',
+        'badge' => null,
+        'badge_color' => null
+    ],
+    [
+        'title' => 'Đề thi',
+        'value' => number_format($tong_de_thi),
+        'color' => 'orange',
+        'icon'  => 'description',
+        'badge' => null,
+        'badge_color' => null
+    ],
+    [
+        'title' => 'Ca thi đang diễn ra',
+        'value' => $ca_thi_dang_dien_ra,
+        'color' => 'red',
+        'icon'  => 'schedule',
+        'badge' => $ca_thi_dang_dien_ra > 0 ? 'LIVE' : null,
+        'badge_color' => 'bg-red-100 text-red-600'
+    ],
+    [
+        'title' => 'Bài làm đã nộp',
+        'value' => number_format($tong_bai_lam),
+        'color' => 'purple',
+        'icon'  => 'assignment_turned_in',
+        'badge' => null,
+        'badge_color' => null
+    ],
+    [
+        'title' => 'Ngân hàng câu hỏi',
+        'value' => number_format($tong_cau_hoi),
+        'color' => 'dark',
+        'icon'  => 'quiz',
+        'badge' => null,
+        'badge_color' => null
+    ]
 ];
 
-// Dữ liệu mô phỏng cho Bảng Kỳ thi đang hoạt động
-$active_exams = [
-    ['name' => 'Toán Cao Cấp A1', 'desc' => 'Học kỳ 1 - 2023', 'time' => '08:00 - 10:00', 'candidates' => '1,240', 'status' => 'Đang thi', 'status_bg' => 'bg-green-100', 'status_text' => 'text-green-700'],
-    ['name' => 'Lập trình Python Cơ bản', 'desc' => 'Khóa hè 2024', 'time' => '13:30 - 15:30', 'candidates' => '540', 'status' => 'Sắp tới', 'status_bg' => 'bg-blue-100', 'status_text' => 'text-blue-700'],
-    ['name' => 'Tiếng Anh TOEIC Nội bộ', 'desc' => 'Đợt đánh giá 04', 'time' => 'Cả ngày', 'candidates' => '2,100', 'status' => 'Đang thi', 'status_bg' => 'bg-green-100', 'status_text' => 'text-green-700'],
-    ['name' => 'Kiến trúc Máy tính', 'desc' => 'Kiểm tra giữa kỳ', 'time' => '07:30 - 08:30', 'candidates' => '120', 'status' => 'Kết thúc', 'status_bg' => 'bg-slate-100', 'status_text' => 'text-slate-600'],
-];
+/* ============================= */
+/*  BẢNG CA THI GẦN NHẤT */
+/* ============================= */
 
-// Dữ liệu mô phỏng cho Nhật ký hệ thống mới nhất
+$stmt = $conn->query("
+    SELECT 
+        ct.ma_ca_thi,
+        dt.tieu_de,
+        ct.thoi_gian_bat_dau,
+        ct.thoi_gian_ket_thuc,
+        (
+            SELECT COUNT(*) 
+            FROM dang_ky_thi dk 
+            WHERE dk.ma_ca_thi = ct.ma_ca_thi
+        ) AS so_luong_thi_sinh
+    FROM ca_thi ct
+    JOIN de_thi dt ON ct.ma_de_thi = dt.ma_de_thi
+    ORDER BY ct.thoi_gian_bat_dau DESC
+    LIMIT 5
+");
+
+$rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$active_exams = [];
+
+foreach ($rows as $row) {
+
+    $now = time();
+    $start = strtotime($row['thoi_gian_bat_dau']);
+    $end = strtotime($row['thoi_gian_ket_thuc']);
+
+    $status = 'Đã kết thúc';
+    $status_bg = 'bg-slate-100';
+    $status_text = 'text-slate-600';
+
+    if ($now >= $start && $now <= $end) {
+        $status = 'Đang thi';
+        $status_bg = 'bg-green-100';
+        $status_text = 'text-green-700';
+    } elseif ($now < $start) {
+        $status = 'Sắp tới';
+        $status_bg = 'bg-blue-100';
+        $status_text = 'text-blue-700';
+    }
+
+    $active_exams[] = [
+        'name' => htmlspecialchars($row['tieu_de']),
+        'desc' => 'Ca thi #' . $row['ma_ca_thi'],
+        'time' => date('H:i d/m/Y', $start) . ' - ' . date('H:i d/m/Y', $end),
+        'candidates' => $row['so_luong_thi_sinh'],
+        'status' => $status,
+        'status_bg' => $status_bg,
+        'status_text' => $status_text,
+    ];
+}
+
+/* Nhật ký demo */
 $recent_logs = [
-    ['icon' => 'login', 'color' => 'blue', 'title' => 'Đăng nhập thành công', 'desc' => 'Admin <b>Nguyen Van A</b> vừa đăng nhập', 'time' => 'VỪA XONG', 'has_line' => true],
-    ['icon' => 'add_task', 'color' => 'orange', 'title' => 'Tạo đề thi mới', 'desc' => 'Giảng viên <b>Tran Thi B</b> đã tạo đề "VLDC_01"', 'time' => '10 PHÚT TRƯỚC', 'has_line' => true],
-    ['icon' => 'report_problem', 'color' => 'red', 'title' => 'Cảnh báo gian lận', 'desc' => 'Thí sinh <b>Hoang C</b> mất kết nối camera', 'time' => '25 PHÚT TRƯỚC', 'has_line' => true],
-    ['icon' => 'backup', 'color' => 'green', 'title' => 'Sao lưu định kỳ', 'desc' => 'Hệ thống đã tự động sao lưu dữ liệu', 'time' => '1 GIỜ TRƯỚC', 'has_line' => false],
+    ['icon' => 'login', 'color' => 'blue', 'title' => 'Đăng nhập thành công', 'desc' => 'Admin vừa đăng nhập', 'time' => 'VỪA XONG', 'has_line' => true],
+    ['icon' => 'add_task', 'color' => 'orange', 'title' => 'Tạo đề thi mới', 'desc' => 'Giảng viên đã tạo đề mới', 'time' => '10 PHÚT TRƯỚC', 'has_line' => true],
+    ['icon' => 'backup', 'color' => 'green', 'title' => 'Sao lưu định kỳ', 'desc' => 'Hệ thống đã sao lưu dữ liệu', 'time' => '1 GIỜ TRƯỚC', 'has_line' => false],
 ];
 
-// Dữ liệu thao tác nhanh
+/* Thao tác nhanh */
 $quick_actions = [
     ['icon' => 'person_add', 'label' => 'Thêm thí sinh'],
     ['icon' => 'post_add', 'label' => 'Thêm câu hỏi'],
-    ['icon' => 'add_circle_outline', 'label' => 'Tạo kỳ thi'],
+    ['icon' => 'add_circle_outline', 'label' => 'Tạo ca thi'],
     ['icon' => 'download', 'label' => 'Xuất kết quả'],
-    ['icon' => 'monitor_heart', 'label' => 'Trạng thái SV'],
     ['icon' => 'email', 'label' => 'Gửi thông báo'],
 ];
 
-// 2. Nhúng Header và Sidebar
+/* Nhúng giao diện */
 include 'components/header.php';
 include 'components/sidebar.php';
 ?>
@@ -64,21 +223,25 @@ include 'components/sidebar.php';
         
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <?php foreach($stats as $stat): ?>
-            <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between hover:shadow-md transition">
-                <div class="flex justify-between items-start mb-4">
-                    <div class="w-10 h-10 rounded-lg bg-<?php echo $stat['color']; ?>-50 text-<?php echo $stat['color']; ?>-600 flex items-center justify-center">
-                        <span class="material-icons"><?php echo $stat['icon']; ?></span>
-                    </div>
-                    <?php if($stat['badge']): ?>
-                    <span class="px-2 py-1 text-[11px] font-bold rounded-md <?php echo $stat['badge_color']; ?> uppercase"><?php echo $stat['badge']; ?></span>
-                    <?php endif; ?>
-                </div>
-                <div>
-                    <p class="text-sm text-slate-500 font-medium"><?php echo $stat['title']; ?></p>
-                    <h3 class="text-2xl font-bold text-slate-800 mt-1"><?php echo $stat['value']; ?></h3>
-                </div>
-            </div>
-            <?php endforeach; ?>
+<div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between hover:shadow-md transition">
+    <div class="flex justify-between items-start mb-4">
+        <div class="w-10 h-10 rounded-lg bg-<?php echo $stat['color']; ?>-50 text-<?php echo $stat['color']; ?>-600 flex items-center justify-center">
+            <span class="material-icons"><?php echo $stat['icon'] ?? 'bar_chart'; ?></span>
+        </div>
+
+        <?php if(!empty($stat['badge'])): ?>
+        <span class="px-2 py-1 text-[11px] font-bold rounded-md <?php echo $stat['badge_color']; ?> uppercase">
+            <?php echo $stat['badge']; ?>
+        </span>
+        <?php endif; ?>
+    </div>
+
+    <div>
+        <p class="text-sm text-slate-500 font-medium"><?php echo $stat['title']; ?></p>
+        <h3 class="text-2xl font-bold text-slate-800 mt-1"><?php echo $stat['value']; ?></h3>
+    </div>
+</div>
+<?php endforeach; ?>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">

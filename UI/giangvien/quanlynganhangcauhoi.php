@@ -1,10 +1,8 @@
 <?php
-session_start();
-// Kiểm tra bảo mật
-if (!isset($_SESSION['vai_tro']) || $_SESSION['vai_tro'] !== 'giangvien') {
-    header("Location: ../login.php");
-    exit();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
 }
+
 ?>
 <!DOCTYPE html>
 <html lang="vi">

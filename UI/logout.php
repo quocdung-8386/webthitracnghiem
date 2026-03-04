@@ -1,24 +1,30 @@
 <?php
-<<<<<<< HEAD
-// 1. Khởi động session để có thể thao tác với nó
 session_start();
 
-// 2. Xóa toàn bộ các biến lưu trữ trong session (bao gồm thông tin đăng nhập, vai trò...)
-session_unset();
+/* Xóa toàn bộ dữ liệu session */
+$_SESSION = [];
 
-// 3. Phá hủy hoàn toàn phiên làm việc hiện tại
+/* Hủy session */
 session_destroy();
 
-// 4. Chuyển hướng người dùng về lại trang đăng nhập
-header("Location: ../login.php");
-=======
-session_start();
+/* Xóa cookie session nếu có */
+if (ini_get("session.use_cookies")) {
+    $params = session_get_cookie_params();
+    setcookie(
+        session_name(),
+        '',
+        time() - 42000,
+        $params["path"],
+        $params["domain"],
+        $params["secure"],
+        $params["httponly"]
+    );
+}
 
-session_unset(); 
+/* Tạo session mới sạch */
+session_regenerate_id(true);
 
-session_destroy(); 
-
-header("Location: login.php");
->>>>>>> 02eacd2636dec01f738054a05a1f716bc981730a
+/* Chuyển về login */
+header("Location: ../UI/login.php");
 exit();
 ?>

@@ -1,4 +1,10 @@
 <?php
+session_start();
+
+if (!isset($_SESSION['vai_tro'])) {
+    header("Location: /webthitracnghiem/UI/login.php");
+    exit();
+}
 // --- 1. MÔ PHỎNG DỮ LIỆU ---
 // (Sau này phần này sẽ được thay bằng code truy vấn Database)
 $danhSachKyThi = [

@@ -1,8 +1,15 @@
 <?php
-session_start();
-// Kiểm tra bảo mật
-if (!isset($_SESSION['vai_tro']) || $_SESSION['vai_tro'] !== 'giangvien') {
-    header("Location: ../login.php");
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+if (!isset($_SESSION['vai_tro'])) {
+    header("Location: /webthitracnghiem/UI/login.php");
+    exit();
+}
+
+if ($_SESSION['vai_tro'] !== 'giang_vien') {
+    header("Location: /webthitracnghiem/UI/login.php");
     exit();
 }
 ?>
