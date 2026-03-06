@@ -71,7 +71,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đăng ký - Hệ thống thi trắc nghiệm</title>
+    <title>Đăng ký - Hệ thống thi trực tuyến</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -90,7 +90,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <path d="M12 2L1 9l11 7 11-7-11-7z"/>
 </svg>
 </div>
-<span class="hidden sm:inline-block">Hệ thống thi trắc nghiệm</span>
+<span class="hidden sm:inline-block">Hệ thống thi trực tuyến</span>
 </div>
 
 <div class="flex items-center space-x-3">

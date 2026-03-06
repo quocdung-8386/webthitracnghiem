@@ -102,7 +102,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đăng nhập - Hệ thống thi trắc nghiệm</title>
+    <title>Đăng nhập - Hệ thống thi trực tuyến</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -121,7 +121,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             <div class="bg-blue-600 text-white p-1.5 rounded-lg">
                 🎓
             </div>
-            <span>Hệ thống thi trắc nghiệm</span>
+            <span>Hệ thống thi trực tuyến</span>
         </div>
         <a href="register.php" class="text-sm text-blue-600 font-semibold hover:underline">
             Đăng ký
