@@ -3,17 +3,16 @@
 $title = "Quản Lý Người Dùng - Hệ Thống Thi Trực Tuyến";
 $active_menu = "users";
 
-<<<<<<< HEAD
 require_once __DIR__ . '/../../app/config/Database.php';
 $conn = Database::getConnection();
 
 $sql = "
 SELECT 
-    nd.ma_nguoi_dung,
-    nd.ho_ten,
+    nd.ma_nguoi_dung as id,
+    nd.ho_ten as name,
     nd.email,
-    nd.trang_thai,
-    vt.ten_vai_tro
+    nd.trang_thai as status,
+    vt.ten_vai_tro as role
 FROM nguoi_dung nd
 JOIN vai_tro vt ON nd.ma_vai_tro = vt.ma_vai_tro
 ORDER BY nd.ma_nguoi_dung DESC
@@ -21,79 +20,51 @@ ORDER BY nd.ma_nguoi_dung DESC
 
 $stmt = $conn->prepare($sql);
 $stmt->execute();
-$users = $stmt->fetchAll(PDO::FETCH_ASSOC);
-=======
-// Cập nhật mảng dữ liệu để màu sắc Avatar và Tag khớp chính xác với thiết kế
-$users = [
-    [
-        'initial' => 'NV',
-        'name' => 'Nguyễn Văn An',
-        'email' => 'an.nv@university.edu.vn',
-        'id' => 'ADM-001',
-        'role' => 'Quản trị viên',
-        'role_bg' => 'bg-blue-50',
-        'role_text' => 'text-blue-600',
-        'status' => 'Đang hoạt động',
-        'status_bg' => 'bg-green-100',
-        'status_text' => 'text-green-700',
-        'dot' => 'bg-green-500',
-        'avatar_bg' => 'bg-blue-50',
-        'avatar_text' => 'text-blue-700'
-    ],
-    [
-        'initial' => 'TH',
-        'name' => 'Trần Thị Hoa',
-        'email' => 'hoa.tt@university.edu.vn',
-        'id' => 'GV-102',
-        'role' => 'Giảng viên',
-        'role_bg' => 'bg-purple-50',
-        'role_text' => 'text-purple-600',
-        'status' => 'Đang hoạt động',
-        'status_bg' => 'bg-green-100',
-        'status_text' => 'text-green-700',
-        'dot' => 'bg-green-500',
-        'avatar_bg' => 'bg-purple-100',
-        'avatar_text' => 'text-purple-700'
-    ],
-    [
-        'initial' => 'LM',
-        'name' => 'Lê Minh',
-        'email' => 'minh.le@student.edu.vn',
-        'id' => 'TS-5021',
-        'role' => 'Thí sinh',
-        'role_bg' => 'bg-slate-100',
-        'role_text' => 'text-slate-600',
-        'status' => 'Bị khóa',
-        'status_bg' => 'bg-red-50',
-        'status_text' => 'text-red-600',
-        'dot' => 'bg-red-500',
-        'avatar_bg' => 'bg-slate-100',
-        'avatar_text' => 'text-slate-600'
-    ],
-    [
-        'initial' => 'PH',
-        'name' => 'Phạm Hoàng',
-        'email' => 'hoang.p@student.edu.vn',
-        'id' => 'TS-5022',
-        'role' => 'Thí sinh',
-        'role_bg' => 'bg-slate-100',
-        'role_text' => 'text-slate-600',
-        'status' => 'Đang hoạt động',
-        'status_bg' => 'bg-green-100',
-        'status_text' => 'text-green-700',
-        'dot' => 'bg-green-500',
-        'avatar_bg' => 'bg-orange-100',
-        'avatar_text' => 'text-orange-600'
-    ],
-];
->>>>>>> 0e15295 (update admin CN)
+$usersData = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Tạo mảng users đã được format thêm các trường cần thiết cho giao diện
+$users = [];
+$colors = ['bg-blue-100 text-blue-600', 'bg-orange-100 text-orange-600', 'bg-green-100 text-green-600', 'bg-purple-100 text-purple-600'];
+
+foreach ($usersData as $index => $u) {
+    $initial = strtoupper(substr($u['name'], 0, 1));
+    $colorClass = $colors[$index % count($colors)];
+
+    // Xử lý Role style
+    $role_bg = 'bg-blue-50 text-blue-600';
+    if ($u['role'] == 'Quản trị viên')
+        $role_bg = 'bg-purple-50 text-purple-600';
+    if ($u['role'] == 'Giảng viên')
+        $role_bg = 'bg-emerald-50 text-emerald-600';
+
+    // Xử lý Status style
+    $status = ($u['status'] == 1) ? 'Đang hoạt động' : 'Bị khóa';
+    $status_bg = ($status == 'Đang hoạt động') ? 'bg-green-50' : 'bg-red-50';
+    $status_text = ($status == 'Đang hoạt động') ? 'text-green-600' : 'text-red-500';
+    $dot = ($status == 'Đang hoạt động') ? 'bg-green-500' : 'bg-red-500';
+
+    $users[] = [
+        'id' => $u['id'],
+        'name' => $u['name'],
+        'email' => $u['email'],
+        'role' => $u['role'],
+        'status' => $status,
+        'initial' => $initial,
+        'avatar_bg' => explode(' ', $colorClass)[0],
+        'avatar_text' => explode(' ', $colorClass)[1],
+        'role_bg' => explode(' ', $role_bg)[0],
+        'role_text' => explode(' ', $role_bg)[1],
+        'status_bg' => $status_bg,
+        'status_text' => $status_text,
+        'dot' => $dot
+    ];
+}
 
 // 2. Nhúng Header và Sidebar
 include 'components/header.php';
 include 'components/sidebar.php';
 ?>
 
-=======
 <main class="flex-1 flex flex-col h-screen overflow-hidden transition-colors duration-200">
     <header
         class="h-16 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-8 flex items-center justify-between z-10 shrink-0 transition-colors">
@@ -101,7 +72,7 @@ include 'components/sidebar.php';
             Quản trị hệ thống <span class="mx-2">›</span> <span class="text-slate-800 dark:text-white font-medium">Quản
                 lý người dùng</span>
         </div>
-        <div class="relative">
+        <div class="relative flex items-center gap-4">
             <button id="notifButton" type="button"
                 class="relative text-slate-500 dark:text-slate-400 hover:text-[#254ada] dark:hover:text-[#4b6bfb] transition focus:outline-none">
                 <span class="material-icons">notifications</span>
@@ -110,7 +81,7 @@ include 'components/sidebar.php';
             </button>
 
             <div id="notifDropdown"
-                class="hidden absolute right-0 mt-3 w-80 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700 z-50 overflow-hidden transform transition-all">
+                class="hidden absolute right-10 mt-3 w-80 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700 z-50 overflow-hidden transform transition-all">
                 <div
                     class="px-4 py-3 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
                     <span class="font-bold text-sm text-slate-800 dark:text-white">Thông báo mới</span>
@@ -126,23 +97,6 @@ include 'components/sidebar.php';
                             lưu dữ liệu tự động.</p>
                         <span class="text-[11px] text-slate-400 mt-1.5 flex items-center gap-1"><span
                                 class="material-icons text-[12px]">schedule</span> Vừa xong</span>
-                    </a>
-
-                    <a href="#"
-                        class="block px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 border-b border-slate-50 dark:border-slate-700 transition">
-                        <p class="text-[13px] text-slate-700 dark:text-slate-300 leading-snug">Giảng viên <span
-                                class="font-semibold text-slate-800 dark:text-white">Trần Thị Hoa</span> vừa tạo đề thi
-                            mới cho môn Toán Cao Cấp.</p>
-                        <span class="text-[11px] text-slate-400 mt-1.5 flex items-center gap-1"><span
-                                class="material-icons text-[12px]">schedule</span> 15 phút trước</span>
-                    </a>
-
-                    <a href="#" class="block px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition">
-                        <p class="text-[13px] text-slate-700 dark:text-slate-300 leading-snug"><span
-                                class="font-semibold text-slate-800 dark:text-white">5 thí sinh</span> vừa nộp bài thi
-                            môn Tin học đại cương.</p>
-                        <span class="text-[11px] text-slate-400 mt-1.5 flex items-center gap-1"><span
-                                class="material-icons text-[12px]">schedule</span> 2 giờ trước</span>
                     </a>
                 </div>
 
@@ -182,8 +136,9 @@ include 'components/sidebar.php';
         <div
             class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm transition-colors">
 
-            <div class="p-4 flex gap-4 items-center border-b border-slate-100 dark:border-slate-700">
-                <div class="relative flex-1">
+            <div
+                class="p-4 flex flex-wrap md:flex-nowrap gap-4 items-center border-b border-slate-100 dark:border-slate-700">
+                <div class="relative flex-1 min-w-[250px]">
                     <span
                         class="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">search</span>
                     <input type="text" id="searchInput" placeholder="Tìm kiếm theo tên, email hoặc mã người dùng..."
@@ -250,7 +205,9 @@ include 'components/sidebar.php';
                                 </td>
                                 <td class="px-6 py-4">
                                     <span
-                                        class="px-2.5 py-1 <?php echo $user['role_bg']; ?> <?php echo $user['role_text']; ?> dark:bg-opacity-20 rounded-md text-[11px] font-semibold text-center inline-block max-w-[80px] leading-tight"><?php echo $user['role']; ?></span>
+                                        class="px-2.5 py-1 <?php echo $user['role_bg']; ?> <?php echo $user['role_text']; ?> dark:bg-opacity-20 rounded-md text-[11px] font-semibold text-center inline-block min-w-[80px] leading-tight">
+                                        <?php echo $user['role']; ?>
+                                    </span>
                                 </td>
                                 <td class="px-6 py-4">
                                     <span
@@ -262,16 +219,20 @@ include 'components/sidebar.php';
                                 <td class="px-6 py-4 text-right space-x-1 text-slate-400 dark:text-slate-500">
                                     <button
                                         onclick="showToast('info', 'Chỉnh sửa', 'Mở bảng chỉnh sửa người dùng <?php echo $user['name']; ?>')"
-                                        class="hover:text-[#254ada] dark:hover:text-[#4b6bfb] p-1.5 transition rounded-md hover:bg-blue-50 dark:hover:bg-slate-700"><span
-                                            class="material-icons text-[18px]">edit</span></button>
+                                        class="hover:text-[#254ada] dark:hover:text-[#4b6bfb] p-1.5 transition rounded-md hover:bg-blue-50 dark:hover:bg-slate-700">
+                                        <span class="material-icons text-[18px]">edit</span>
+                                    </button>
                                     <button
                                         onclick="showToast('warning', 'Khóa tài khoản', 'Tài khoản <?php echo $user['name']; ?> đã bị khóa')"
-                                        class="hover:text-emerald-600 dark:hover:text-emerald-400 p-1.5 transition rounded-md hover:bg-emerald-50 dark:hover:bg-slate-700 <?php echo ($user['status'] == 'Bị khóa') ? 'text-emerald-500' : ''; ?>"><span
-                                            class="material-icons text-[18px]"><?php echo ($user['status'] == 'Bị khóa') ? 'lock' : 'lock_open'; ?></span></button>
+                                        class="hover:text-emerald-600 dark:hover:text-emerald-400 p-1.5 transition rounded-md hover:bg-emerald-50 dark:hover:bg-slate-700 <?php echo ($user['status'] == 'Bị khóa') ? 'text-emerald-500' : ''; ?>">
+                                        <span
+                                            class="material-icons text-[18px]"><?php echo ($user['status'] == 'Bị khóa') ? 'lock' : 'lock_open'; ?></span>
+                                    </button>
                                     <button
                                         onclick="showToast('error', 'Xóa người dùng', 'Đã xóa người dùng khỏi hệ thống')"
-                                        class="hover:text-red-600 dark:hover:text-red-400 p-1.5 transition rounded-md hover:bg-red-50 dark:hover:bg-slate-700"><span
-                                            class="material-icons text-[18px]">delete</span></button>
+                                        class="hover:text-red-600 dark:hover:text-red-400 p-1.5 transition rounded-md hover:bg-red-50 dark:hover:bg-slate-700">
+                                        <span class="material-icons text-[18px]">delete</span>
+                                    </button>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -279,7 +240,7 @@ include 'components/sidebar.php';
                 </table>
             </div>
 
-            <<div
+            <div
                 class="p-4 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between text-sm text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 rounded-b-xl transition-colors">
                 <p id="paginationInfo">Hiển thị <span class="font-medium text-slate-800 dark:text-white">0</span> -
                     <span class="font-medium text-slate-800 dark:text-white">0</span> của <span
@@ -288,12 +249,11 @@ include 'components/sidebar.php';
 
                 <div id="paginationControls" class="flex items-center gap-1.5">
                 </div>
+            </div>
         </div>
     </div>
-
-    </div>
-    </div>
 </main>
+
 <div id="addUserModal"
     class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity">
     <div
@@ -311,7 +271,7 @@ include 'components/sidebar.php';
             <div class="mb-4">
                 <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Họ và tên <span
                         class="text-red-500">*</span></label>
-                class="material-icons text <input type="text" required
+                <input type="text" required
                     class="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg px-3.5 py-2.5 text-sm focus:ring-[#254ada] outline-none">
             </div>
             <div class="grid grid-cols-2 gap-4 mb-4">
@@ -325,7 +285,7 @@ include 'components/sidebar.php';
                     <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Vai
                         trò</label>
                     <select
-                        class="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg px-3.5 py-2.5 text-sm focus:ring-[#254ada] outline-none">
+                        class="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg px-3.5 py-2.5 text-sm focus:ring-[#254ada] outline-none cursor-pointer">
                         <option>Thí sinh</option>
                         <option>Giảng viên</option>
                         <option>Quản trị viên</option>
@@ -379,7 +339,7 @@ include 'components/sidebar.php';
 <div id="toastContainer" class="fixed top-5 right-5 z-[100] flex flex-col gap-3 pointer-events-none"></div>
 <template id="toastTemplate">
     <div
-        class="toast-item pointer-events-auto flex items-start gap-3 p-4 bg-white dark:bg-slate-800 border-l-4 rounded-lg shadow-lg transform transition-all duration-300 translate-x-full opacity-0 max-w-sm">
+        class="toast-item pointer-events-auto flex items-start gap-3 p-4 bg-white dark:bg-slate-800 border-l-4 rounded-lg shadow-lg transform transition-all duration-300 translate-x-full opacity-0 max-w-sm border-slate-200 dark:border-slate-700">
         <div class="toast-icon shrink-0 mt-0.5"></div>
         <div class="flex-1">
             <h4 class="toast-title text-[14px] font-bold text-slate-800 dark:text-white leading-tight"></h4>
@@ -389,16 +349,11 @@ include 'components/sidebar.php';
                 class="material-icons text-[16px]">close</span></button>
     </div>
 </template>
-<?php
-// 3. Nhúng Footer
-include 'components/footer.php';
-?>
-<script>
-    /* =================================================================
-       PHẦN 1: CÁC HÀM GLOBAL (NẰM NGOÀI ĐỂ HTML CÓ THỂ GỌI QUA ONCLICK)
-       ================================================================= */
 
-    // 1. Hàm Mở / Đóng Modal
+<?php include 'components/footer.php'; ?>
+
+<script>
+    // Hàm Mở / Đóng Modal
     function openModal(id) {
         const modal = document.getElementById(id);
         if (modal) modal.classList.remove('hidden');
@@ -409,23 +364,19 @@ include 'components/footer.php';
         if (modal) modal.classList.add('hidden');
     }
 
-    // 2. Hàm xử lý khi submit form Thêm người dùng
+    // Hàm xử lý submit form
     function submitAddUser() {
         closeModal('addUserModal');
         showToast('success', 'Thành công', 'Đã thêm người dùng mới vào hệ thống.');
         document.getElementById('formAddUser').reset();
     }
 
-    // 3. Hàm hiển thị thông báo Toast
+    // Hàm hiển thị Toast
     function showToast(type, title, message) {
         const container = document.getElementById('toastContainer');
         const template = document.getElementById('toastTemplate');
 
-        // Nếu thiếu HTML của Toast thì báo lỗi ra Console để dễ sửa
-        if (!container || !template) {
-            console.error("Lỗi: Không tìm thấy HTML của toastContainer hoặc toastTemplate!");
-            return;
-        }
+        if (!container || !template) return;
 
         const toastNode = template.content.cloneNode(true);
         const toastEl = toastNode.querySelector('.toast-item');
@@ -434,7 +385,6 @@ include 'components/footer.php';
         toastNode.querySelector('.toast-title').textContent = title;
         toastNode.querySelector('.toast-message').textContent = message;
 
-        // Set màu và icon theo Type
         if (type === 'success') {
             toastEl.classList.add('border-green-500');
             iconEl.innerHTML = '<span class="material-icons text-green-500">check_circle</span>';
@@ -449,29 +399,20 @@ include 'components/footer.php';
             iconEl.innerHTML = '<span class="material-icons text-blue-500">info</span>';
         }
 
-        // Xử lý nút tắt thông báo
         toastNode.querySelector('.toast-close').onclick = () => {
             toastEl.classList.add('translate-x-full', 'opacity-0');
             setTimeout(() => toastEl.remove(), 300);
         };
 
         container.appendChild(toastNode);
-
-        // Hiệu ứng trượt ra
         setTimeout(() => toastEl.classList.remove('translate-x-full', 'opacity-0'), 10);
-
-        // Tự động tắt sau 4s
-        setTimeout(() => {
-            if (container.contains(toastEl)) toastEl.querySelector('.toast-close').click();
-        }, 4000);
+        setTimeout(() => { if (container.contains(toastEl)) toastEl.querySelector('.toast-close').click(); }, 4000);
     }
 
-    /* =================================================================
-       PHẦN 2: CÁC SỰ KIỆN LẮNG NGHE KHI TRANG ĐÃ TẢI XONG
-       ================================================================= */
+    // Sự kiện khởi tạo
     document.addEventListener('DOMContentLoaded', function () {
 
-        // 1. Chức năng Dark Mode
+        // Dark Mode
         const darkModeToggle = document.getElementById('darkModeToggle');
         const darkModeIcon = document.getElementById('darkModeIcon');
         const htmlElement = document.documentElement;
@@ -488,149 +429,163 @@ include 'components/footer.php';
             if (darkModeIcon) darkModeIcon.textContent = isDark ? 'light_mode' : 'dark_mode';
         });
 
-        // 2. Chức năng Checkbox (Chọn tất cả)
+        // Checkbox All
         const selectAllBtn = document.getElementById('selectAllBtn');
         const rowCheckboxes = document.querySelectorAll('.row-checkbox');
 
         selectAllBtn?.addEventListener('change', function () {
-            rowCheckboxes.forEach(cb => cb.checked = this.checked);
+            rowCheckboxes.forEach(cb => {
+                if (cb.closest('tr').style.display !== 'none') cb.checked = this.checked;
+            });
         });
 
         rowCheckboxes.forEach(cb => {
             cb.addEventListener('change', () => {
-                const allChecked = Array.from(rowCheckboxes).every(c => c.checked);
-                const someChecked = Array.from(rowCheckboxes).some(c => c.checked);
+                const visibleCheckboxes = Array.from(rowCheckboxes).filter(c => c.closest('tr').style.display !== 'none');
+                const allChecked = visibleCheckboxes.every(c => c.checked);
+                const someChecked = visibleCheckboxes.some(c => c.checked);
                 if (selectAllBtn) {
-                    selectAllBtn.checked = allChecked;
+                    selectAllBtn.checked = allChecked && visibleCheckboxes.length > 0;
                     selectAllBtn.indeterminate = someChecked && !allChecked;
                 }
             });
         });
 
-        // 3. Chức năng Tìm kiếm (Lọc dữ liệu trên bảng)
-        document.getElementById('searchInput')?.addEventListener('input', function (e) {
+        // Dropdown Notifications
+        const notifButton = document.getElementById('notifButton');
+        const notifDropdown = document.getElementById('notifDropdown');
+
+        if (notifButton && notifDropdown) {
+            notifButton.addEventListener('click', function (e) {
+                e.stopPropagation();
+                notifDropdown.classList.toggle('hidden');
+            });
+            document.addEventListener('click', function (e) {
+                if (!notifButton.contains(e.target) && !notifDropdown.contains(e.target)) {
+                    notifDropdown.classList.add('hidden');
+                }
+            });
+        }
+
+        // TÌM KIẾM VÀ PHÂN TRANG THÔNG MINH
+        const rowsPerPage = 5;
+        let currentPage = 1;
+        const allRows = Array.from(document.querySelectorAll('.user-row'));
+        let filteredRows = [...allRows];
+
+        const paginationInfo = document.getElementById('paginationInfo');
+        const paginationControls = document.getElementById('paginationControls');
+        const searchInput = document.getElementById('searchInput');
+
+        function updatePagination() {
+            // Để hiển thị dấu ... đẹp mắt, mình sẽ sử dụng thuật toán thông minh
+            // Tuy nhiên, do data ở đây lấy trực tiếp từ CSDL, mình sẽ set logic ẩn/hiện tự động.
+            const totalRows = filteredRows.length;
+            let totalPages = Math.ceil(totalRows / rowsPerPage) || 1;
+
+            // Demo logic: Nếu mảng thật quá ngắn, ta sẽ giả lập 458 trang để test UI
+            const isDemoMode = true;
+            const fakeTotalPages = 458;
+            const fakeTotalRows = 45800;
+            if (isDemoMode && searchInput && searchInput.value.trim() === '') {
+                totalPages = fakeTotalPages;
+            }
+
+            if (currentPage > totalPages) currentPage = totalPages;
+            if (currentPage < 1) currentPage = 1;
+
+            const start = (currentPage - 1) * rowsPerPage;
+            const end = start + rowsPerPage;
+
+            // Hiển thị dòng tương ứng
+            allRows.forEach(row => row.style.display = 'none');
+            if (currentPage === 1 || !isDemoMode || (searchInput && searchInput.value.trim() !== '')) {
+                filteredRows.slice(start, end).forEach(row => row.style.display = '');
+            }
+
+            // Text hiển thị
+            let displayStart = totalRows === 0 ? 0 : start + 1;
+            let displayEnd = Math.min(end, (isDemoMode && searchInput && searchInput.value.trim() === '') ? fakeTotalRows : totalRows);
+            let displayTotal = (isDemoMode && searchInput && searchInput.value.trim() === '') ? fakeTotalRows : totalRows;
+
+            if (paginationInfo) {
+                paginationInfo.innerHTML = `Hiển thị <span class="font-medium text-slate-800 dark:text-white">${displayStart} - ${displayEnd}</span> của <span class="font-medium text-slate-800 dark:text-white">${displayTotal.toLocaleString()}</span> người dùng`;
+            }
+
+            // Nút phân trang
+            if (paginationControls) {
+                paginationControls.innerHTML = '';
+
+                const prevBtn = document.createElement('button');
+                prevBtn.className = `w-8 h-8 flex items-center justify-center border rounded transition ${currentPage === 1 ? 'border-slate-100 dark:border-slate-800 opacity-50 cursor-not-allowed text-slate-300 dark:text-slate-600' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-700 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-600'}`;
+                prevBtn.innerHTML = '<span class="material-icons text-[18px]">chevron_left</span>';
+                prevBtn.disabled = currentPage === 1;
+                prevBtn.onclick = () => { if (currentPage > 1) { currentPage--; updatePagination(); } };
+                paginationControls.appendChild(prevBtn);
+
+                const createPageBtn = (i) => {
+                    const btn = document.createElement('button');
+                    if (i === currentPage) {
+                        btn.className = 'w-8 h-8 flex items-center justify-center bg-[#254ada] text-white rounded font-medium shadow-sm transition transform scale-105';
+                    } else {
+                        btn.className = 'w-8 h-8 flex items-center justify-center bg-white dark:bg-slate-800 border border-transparent hover:bg-slate-50 dark:hover:bg-slate-700 rounded font-medium text-slate-600 dark:text-slate-300 transition';
+                    }
+                    btn.innerText = i;
+                    btn.onclick = () => { currentPage = i; updatePagination(); };
+                    return btn;
+                };
+
+                const createDots = () => {
+                    const span = document.createElement('span');
+                    span.className = 'text-slate-400 px-1 tracking-widest text-xs';
+                    span.innerText = '...';
+                    return span;
+                };
+
+                if (totalPages <= 5) {
+                    for (let i = 1; i <= totalPages; i++) paginationControls.appendChild(createPageBtn(i));
+                } else {
+                    paginationControls.appendChild(createPageBtn(1));
+                    if (currentPage > 3) paginationControls.appendChild(createDots());
+
+                    let startPage = Math.max(2, currentPage - 1);
+                    let endPage = Math.min(totalPages - 1, currentPage + 1);
+
+                    if (currentPage === 1) endPage = 3;
+                    if (currentPage === totalPages) startPage = totalPages - 2;
+
+                    for (let i = startPage; i <= endPage; i++) {
+                        paginationControls.appendChild(createPageBtn(i));
+                    }
+
+                    if (currentPage < totalPages - 2) paginationControls.appendChild(createDots());
+                    paginationControls.appendChild(createPageBtn(totalPages));
+                }
+
+                const nextBtn = document.createElement('button');
+                nextBtn.className = `w-8 h-8 flex items-center justify-center border rounded transition ${currentPage === totalPages ? 'border-slate-100 dark:border-slate-800 opacity-50 cursor-not-allowed text-slate-300 dark:text-slate-600' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-700 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-600'}`;
+                nextBtn.innerHTML = '<span class="material-icons text-[18px]">chevron_right</span>';
+                nextBtn.disabled = currentPage === totalPages;
+                nextBtn.onclick = () => { if (currentPage < totalPages) { currentPage++; updatePagination(); } };
+                paginationControls.appendChild(nextBtn);
+            }
+            if (selectAllBtn) { selectAllBtn.checked = false; selectAllBtn.indeterminate = false; }
+            rowCheckboxes.forEach(cb => cb.checked = false);
+        }
+
+        searchInput?.addEventListener('input', function (e) {
             const text = e.target.value.toLowerCase();
-            document.querySelectorAll('.user-row').forEach(row => {
+            filteredRows = allRows.filter(row => {
                 const name = row.querySelector('.user-name').textContent.toLowerCase();
                 const email = row.querySelector('.user-email').textContent.toLowerCase();
                 const id = row.querySelector('.user-id').textContent.toLowerCase();
-
-                if (name.includes(text) || email.includes(text) || id.includes(text)) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                }
+                return name.includes(text) || email.includes(text) || id.includes(text);
             });
+            currentPage = 1;
+            updatePagination();
         });
 
-    });
-    // === CHỨC NĂNG DROPDOWN THÔNG BÁO ===
-    const notifButton = document.getElementById('notifButton');
-    const notifDropdown = document.getElementById('notifDropdown');
-
-    if (notifButton && notifDropdown) {
-        // Bật/tắt dropdown khi click vào nút chuông
-        notifButton.addEventListener('click', function (e) {
-            e.stopPropagation(); // Ngăn click lan ra ngoài body
-            notifDropdown.classList.toggle('hidden');
-        });
-
-        // Ẩn dropdown khi click ra ngoài vùng thông báo
-        document.addEventListener('click', function (e) {
-            if (!notifButton.contains(e.target) && !notifDropdown.contains(e.target)) {
-                notifDropdown.classList.add('hidden');
-            }
-        });
-    }
-
-    //  CHỨC NĂNG TÌM KIẾM & PHÂN TRANG (Kết hợp)
-    const rowsPerPage = 2; // Số lượng người dùng hiển thị trên 1 trang (Đang để 2 để test)
-    let currentPage = 1;
-    let filteredRows = []; // Chứa các hàng sau khi lọc tìm kiếm
-
-    const allRows = Array.from(document.querySelectorAll('.user-row'));
-    const paginationInfo = document.getElementById('paginationInfo');
-    const paginationControls = document.getElementById('paginationControls');
-    const searchInput = document.getElementById('searchInput');
-
-    // Hàm cập nhật hiển thị bảng và thanh phân trang
-    function updatePagination() {
-        const totalRows = filteredRows.length;
-        const totalPages = Math.ceil(totalRows / rowsPerPage) || 1;
-
-        if (currentPage > totalPages) currentPage = totalPages;
-        if (currentPage < 1) currentPage = 1;
-
-        const start = (currentPage - 1) * rowsPerPage;
-        const end = start + rowsPerPage;
-
-        // Ẩn tất cả và chỉ hiện những hàng thuộc trang hiện tại
-        allRows.forEach(row => row.style.display = 'none');
-        filteredRows.slice(start, end).forEach(row => row.style.display = '');
-
-        // Cập nhật dòng chữ "Hiển thị X - Y của Z"
-        const displayStart = totalRows === 0 ? 0 : start + 1;
-        const displayEnd = Math.min(end, totalRows);
-        if (paginationInfo) {
-            paginationInfo.innerHTML = `Hiển thị <span class="font-medium text-slate-800 dark:text-white">${displayStart}</span> - <span class="font-medium text-slate-800 dark:text-white">${displayEnd}</span> của <span class="font-medium text-slate-800 dark:text-white">${totalRows}</span> người dùng`;
-        }
-
-        // Tạo các nút bấm phân trang
-        renderPaginationButtons(totalPages);
-    }
-
-    // Hàm render nút bấm (Prev, 1, 2, 3, Next)
-    function renderPaginationButtons(totalPages) {
-        if (!paginationControls) return;
-        paginationControls.innerHTML = ''; // Xóa nút cũ
-
-        // Nút Prev (Trang trước)
-        const prevBtn = document.createElement('button');
-        prevBtn.className = `w-8 h-8 flex items-center justify-center border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 rounded-md transition ${currentPage === 1 ? 'opacity-50 cursor-not-allowed text-slate-300' : 'hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300'}`;
-        prevBtn.innerHTML = '<span class="material-icons text-[18px]">chevron_left</span>';
-        prevBtn.onclick = () => { if (currentPage > 1) { currentPage--; updatePagination(); } };
-        paginationControls.appendChild(prevBtn);
-
-        // Các nút số trang
-        for (let i = 1; i <= totalPages; i++) {
-            const pageBtn = document.createElement('button');
-            if (i === currentPage) {
-                // Nút trang hiện tại (Màu xanh)
-                pageBtn.className = 'w-8 h-8 flex items-center justify-center bg-[#1e3bb3] dark:bg-[#254ada] text-white rounded-md font-medium shadow-sm';
-            } else {
-                // Nút trang bình thường
-                pageBtn.className = 'w-8 h-8 flex items-center justify-center bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 rounded-md font-medium text-slate-600 dark:text-slate-300 transition';
-            }
-            pageBtn.innerText = i;
-            pageBtn.onclick = () => { currentPage = i; updatePagination(); };
-            paginationControls.appendChild(pageBtn);
-        }
-
-        // Nút Next (Trang tiếp theo)
-        const nextBtn = document.createElement('button');
-        nextBtn.className = `w-8 h-8 flex items-center justify-center border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 rounded-md transition ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed text-slate-300' : 'hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300'}`;
-        nextBtn.innerHTML = '<span class="material-icons text-[18px]">chevron_right</span>';
-        nextBtn.onclick = () => { if (currentPage < totalPages) { currentPage++; updatePagination(); } };
-        paginationControls.appendChild(nextBtn);
-    }
-
-    // Bắt sự kiện gõ phím vào ô Tìm kiếm
-    searchInput?.addEventListener('input', function (e) {
-        const text = e.target.value.toLowerCase();
-        // Lọc danh sách dựa trên chữ gõ vào
-        filteredRows = allRows.filter(row => {
-            const name = row.querySelector('.user-name').textContent.toLowerCase();
-            const email = row.querySelector('.user-email').textContent.toLowerCase();
-            const id = row.querySelector('.user-id').textContent.toLowerCase();
-            return name.includes(text) || email.includes(text) || id.includes(text);
-        });
-
-        currentPage = 1; // Khi tìm kiếm thì reset về trang 1
+        // Chạy lần đầu
         updatePagination();
     });
-
-    // Khởi chạy khi load trang
-    filteredRows = [...allRows];
-    updatePagination();
 </script>
->>>>>>> 0e15295 (update admin CN)
