@@ -1,27 +1,23 @@
 <?php
-
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
 require_once __DIR__ . '/../app/config/database.php';
 
+// Kiểm tra nếu đã đăng nhập thì đá về đúng trang
 if (isset($_SESSION['vai_tro'])) {
-
     switch ($_SESSION['vai_tro']) {
         case 'admin':
-            header("Location: /webthitracnghiem/UI/admin/bangdieukhientongquan.php");
+            header("Location: admin/bangdieukhientongquan.php");
             break;
-
-        case 'giang_vien':
-            header("Location: /webthitracnghiem/UI/giangvien/quanlynganhangcauhoi.php");
+        case 'giangvien': 
+            header("Location: giangvien/quanlynganhangcauhoi.php");
             break;
-
-        case 'thi_sinh':
-            header("Location: /webthitracnghiem/UI/thisinh/timkiemvathamgiathi.php");
+        case 'thisinh': 
+            header("Location: thisinh/timkiemvathamgiathi.php");
             break;
     }
-
     exit();
 }
 
@@ -35,17 +31,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     if ($username === '' || $password === '') {
         $error_message = "Vui lòng nhập đầy đủ thông tin!";
     } else {
-
         try {
-
             $conn = Database::getConnection();
 
-            $sql = "SELECT nd.*, vt.ten_vai_tro 
-                    FROM nguoi_dung nd
-                    JOIN vai_tro vt ON nd.ma_vai_tro = vt.ma_vai_tro
-                    WHERE nd.ten_dang_nhap = :username 
-                       OR nd.email = :username
-                    LIMIT 1";
+            // Truy vấn lấy dữ liệu user
+            $sql = "SELECT * FROM nguoi_dung 
+                    WHERE ten_dang_nhap = :username 
+                       OR email = :username LIMIT 1";
 
             $stmt = $conn->prepare($sql);
             $stmt->execute([':username' => $username]);
@@ -59,53 +51,68 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 $error_message = "Sai mật khẩu!";
             }
             elseif ($user['trang_thai'] !== 'hoat_dong') {
-                $error_message = "Tài khoản đã bị khóa!";
+                $error_message = "Tài khoản đã bị khóa hoặc ngừng hoạt động!";
             }
             else {
-
+                // Đăng nhập thành công, tái tạo ID session để bảo mật
                 session_regenerate_id(true);
 
+                // Lưu thông tin cơ bản
                 $_SESSION['ma_nguoi_dung'] = $user['ma_nguoi_dung'];
                 $_SESSION['ho_ten'] = $user['ho_ten'];
-                $_SESSION['vai_tro'] = $user['ten_vai_tro'];
 
-                switch ($user['ten_vai_tro']) {
-
-                    case 'admin':
-                        header("Location: /webthitracnghiem/UI/admin/bangdieukhientongquan.php");
+                // Dùng ma_vai_tro (1, 2, 3) để xét và chuyển trang
+                switch ($user['ma_vai_tro']) {
+                    case 1:
+                        $_SESSION['vai_tro'] = 'admin';
+                        header("Location: admin/bangdieukhientongquan.php");
                         break;
 
-                    case 'giang_vien':
-                        header("Location: /webthitracnghiem/UI/giangvien/quanlynganhangcauhoi.php");
+                    case 2:
+                        $_SESSION['vai_tro'] = 'giangvien';
+                        header("Location: giangvien/quanlynganhangcauhoi.php");
                         break;
 
-                    case 'thi_sinh':
-                        header("Location: /webthitracnghiem/UI/thisinh/timkiemvathamgiathi.php");
+                    case 3:
+                        $_SESSION['vai_tro'] = 'thisinh';
+                        // Định dạng lại mảng user để header.php của Thí sinh hiển thị Avatar và ID đẹp
+                        $_SESSION['user'] = [
+                            'ten' => $user['ho_ten'],
+                            'id' => '#' . str_pad($user['ma_nguoi_dung'], 5, "0", STR_PAD_LEFT),
+                            'avatar' => 'https://i.pravatar.cc/150?u=' . $user['ma_nguoi_dung'] 
+                        ];
+                        header("Location: thisinh/timkiemvathamgiathi.php");
                         break;
 
                     default:
                         $error_message = "Vai trò không hợp lệ!";
                         break;
                 }
-
                 exit();
             }
 
         } catch (PDOException $e) {
-            $error_message = "Lỗi hệ thống!";
+            $error_message = "Lỗi hệ thống: " . $e->getMessage();
         }
     }
 }
+
+// Khai báo title cho trang
+$title = 'Đăng nhập - Hệ Thống Thi Trực Tuyến';
 ?>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đăng nhập - Hệ thống thi trực tuyến</title>
-
+    
+    <title><?php echo isset($title) ? $title : 'Hệ Thống Thi Trực Tuyến'; ?></title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="icon" type="image/png" href="../asset/images/favicon.png">
 
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
@@ -118,10 +125,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 <header class="bg-white border-b border-gray-100 shadow-sm">
     <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
         <div class="flex items-center space-x-2 text-blue-700 font-bold text-lg">
-            <div class="bg-blue-600 text-white p-1.5 rounded-lg">
-                🎓
+            <div class="bg-blue-600 text-white p-1.5 rounded-lg flex items-center justify-center">
+                <span class="material-icons" style="font-size: 20px;">school</span>
             </div>
-            <span>Hệ thống thi trực tuyến</span>
+            <span>Hệ Thống Thi Trực Tuyến</span>
         </div>
         <a href="register.php" class="text-sm text-blue-600 font-semibold hover:underline">
             Đăng ký
@@ -132,7 +139,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 <main class="flex-grow flex items-center justify-center p-6">
     <div class="max-w-5xl w-full bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col lg:flex-row">
 
-        <!-- LEFT -->
         <div class="lg:w-1/2 bg-gradient-blue p-10 text-white hidden lg:flex flex-col justify-center">
             <h1 class="text-3xl font-extrabold mb-4">Chào mừng trở lại!</h1>
             <p class="text-blue-100 text-sm mb-6">
@@ -148,7 +154,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             </div>
         </div>
 
-        <!-- RIGHT -->
         <div class="lg:w-1/2 p-10 flex flex-col justify-center">
 
             <h2 class="text-2xl font-bold text-gray-800 mb-6">Đăng nhập</h2>
@@ -165,7 +170,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     <label class="text-xs font-bold text-gray-400 uppercase">Tên đăng nhập / Email</label>
                     <input type="text" name="username" required
                            class="w-full mt-2 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
-                           placeholder="Nhập username hoặc email">
+                           placeholder="Nhập username hoặc email"
+                           value="<?php echo htmlspecialchars($_POST['username'] ?? ''); ?>">
                 </div>
 
                 <div>
@@ -199,7 +205,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 </main>
 
 <footer class="text-center py-6 text-gray-400 text-xs">
-    © 2026 HeThongThiTracNghiem. All rights reserved.
+    © 2026 Hệ Thống Thi Trực Tuyến. All rights reserved.
 </footer>
 
 </body>
