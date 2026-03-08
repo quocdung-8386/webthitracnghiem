@@ -1,6 +1,10 @@
 <?php
+if(session_status() === PHP_SESSION_NONE){
+    session_start();
+}
 // Xử lý logic để xác định nhóm menu nào đang được Active
 $active_menu = isset($active_menu) ? $active_menu : '';
+
 
 // Khai báo các trang thuộc từng nhóm
 $group_sys = ['users', 'roles', 'settings', 'logs', 'backup'];
@@ -104,17 +108,46 @@ $is_report_active = in_array($active_menu, $group_report);
             </div>
         </div>
     </nav>
+<?php
 
-    <div class="p-4 bg-black/10 flex items-center gap-3 border-t border-white/10 shrink-0">
-        <div class="w-10 h-10 rounded-full bg-blue-400 flex items-center justify-center font-bold text-white shadow-inner">A</div>
-        <div class="flex-1 overflow-hidden">
-            <p class="text-sm font-semibold truncate">Admin</p>
-            <p class="text-[11px] text-blue-300 truncate">admin@gmail.com</p>
-        </div>
-        <a href="../logout.php" title="Đăng xuất" class="text-blue-300 hover:text-white transition-colors p-1.5 rounded-md hover:bg-white/10">
-            <span class="material-icons text-[20px]">login</span>
-        </a>
-    </div>
+$username = isset($_SESSION['ho_ten']) ? $_SESSION['ho_ten'] : 'Admin';
+$email = isset($_SESSION['email']) ? $_SESSION['email'] : 'admin@gmail.com';
+
+$avatar = strtoupper(substr($username,0,1));
+
+?>
+
+<div class="p-4 bg-black/10 flex items-center gap-3 border-t border-white/10 shrink-0">
+
+<div class="w-10 h-10 rounded-full bg-blue-400 flex items-center justify-center font-bold text-white shadow-inner">
+
+<?php echo $avatar; ?>
+
+</div>
+
+<div class="flex-1 overflow-hidden">
+
+<p class="text-sm font-semibold truncate">
+
+<?php echo $username; ?>
+
+</p>
+
+<p class="text-[11px] text-blue-300 truncate">
+
+<?php echo $email; ?>
+
+</p>
+
+</div>
+
+<a href="../logout.php" title="Đăng xuất" class="text-blue-300 hover:text-white transition-colors p-1.5 rounded-md hover:bg-white/10">
+
+<span class="material-icons text-[20px]">login</span>
+
+</a>
+
+</div>
 </aside>
 
 <script>
