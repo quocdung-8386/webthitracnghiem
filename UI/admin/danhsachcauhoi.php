@@ -1,13 +1,61 @@
 <?php
 $title = "Ngân hàng câu hỏi - Hệ Thống Thi Trực Tuyến";
 $active_menu = "update_q"; // Sẽ làm sáng menu Cập nhật câu hỏi ở Sidebar
+require_once __DIR__ . '/../../app/config/Database.php';
+$conn = Database::getConnection();
 
-$questions = [
-    ['code' => 'MATH-101-001', 'content' => 'Cho hàm số y = ax^2 + bx + c. Tìm điều kiện để đồ thị hàm...', 'subject' => 'Toán học', 'grade' => 'Khối 10 - Giải tích', 'level' => 'Thông hiểu', 'level_bg' => 'bg-blue-50', 'level_text' => 'text-blue-600 dark:text-blue-400', 'status' => 'Đã duyệt', 'status_bg' => 'bg-green-100', 'status_text' => 'text-green-700 dark:text-green-400', 'dot' => ''],
-    ['code' => 'PHYS-12-254', 'content' => 'Một vật dao động điều hòa với phương trình x = 5cos(4πt...', 'subject' => 'Vật lý', 'grade' => 'Khối 12 - Cơ học', 'level' => 'Vận dụng', 'level_bg' => 'bg-orange-50', 'level_text' => 'text-orange-600 dark:text-orange-400', 'status' => 'Đang chờ duyệt', 'status_bg' => 'bg-orange-100', 'status_text' => 'text-orange-700 dark:text-orange-400', 'dot' => ''],
-    ['code' => 'ENGL-UNI-012', 'content' => "Choose the best answer to complete the sentence: 'If I ...", 'subject' => 'Tiếng Anh', 'grade' => 'Đại học - Grammar', 'level' => 'Nhận biết', 'level_bg' => 'bg-slate-100', 'level_text' => 'text-slate-600 dark:text-slate-300', 'status' => 'Nháp', 'status_bg' => 'bg-transparent', 'status_text' => 'text-slate-500 dark:text-slate-400', 'dot' => 'bg-slate-400 dark:bg-slate-500'],
-    ['code' => 'MATH-12-099', 'content' => 'Tính nguyên hàm của hàm số f(x) = e^(2x) * sin(x)?', 'subject' => 'Toán học', 'grade' => 'Khối 12 - Giải tích', 'level' => 'Vận dụng cao', 'level_bg' => 'bg-red-50', 'level_text' => 'text-red-600 dark:text-red-400', 'status' => 'Đã duyệt', 'status_bg' => 'bg-green-100', 'status_text' => 'text-green-700 dark:text-green-400', 'dot' => ''],
-];
+$sql = "
+SELECT 
+    ch.ma_cau_hoi,
+    ch.noi_dung,
+    ch.muc_do,
+    ch.loai_cau_hoi,
+    dm.ten_danh_muc,
+    ch.ngay_tao
+FROM cau_hoi ch
+LEFT JOIN danh_muc dm ON ch.ma_danh_muc = dm.ma_danh_muc
+ORDER BY ch.ma_cau_hoi DESC
+";
+
+$result = $conn->query($sql);
+
+$questions = [];
+
+while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
+
+    // xử lý hiển thị mức độ
+    $level = $row['muc_do'];
+    $level_bg = '';
+    $level_text = '';
+
+    if ($level == 'de') {
+        $level = 'Dễ';
+        $level_bg = 'bg-green-50';
+        $level_text = 'text-green-600';
+    } elseif ($level == 'trung_binh') {
+        $level = 'Trung bình';
+        $level_bg = 'bg-blue-50';
+        $level_text = 'text-blue-600';
+    } else {
+        $level = 'Khó';
+        $level_bg = 'bg-red-50';
+        $level_text = 'text-red-600';
+    }
+
+    $questions[] = [
+        'code' => 'Q-' . $row['ma_cau_hoi'],
+        'content' => $row['noi_dung'],
+        'subject' => $row['ten_danh_muc'] ?? 'Chưa phân loại',
+        'grade' => $row['loai_cau_hoi'],
+        'level' => $level,
+        'level_bg' => $level_bg,
+        'level_text' => $level_text,
+        'status' => 'Đã duyệt',
+        'status_bg' => 'bg-green-100',
+        'status_text' => 'text-green-700',
+        'dot' => ''
+    ];
+}
 
 include 'components/header.php';
 include 'components/sidebar.php';
