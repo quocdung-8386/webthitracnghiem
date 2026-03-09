@@ -1,6 +1,62 @@
 <?php
 $title = "Phân loại câu hỏi - Hệ Thống Thi Trực Tuyến";
 $active_menu = "category_q"; 
+require_once __DIR__ . '/../../app/config/Database.php';
+$conn = Database::getConnection();
+
+// Lấy danh sách danh mục
+$sql = "SELECT * FROM danh_muc ORDER BY ngay_tao DESC";
+$stmt = $conn->prepare($sql);
+$stmt->execute();
+$danhmuc = $stmt->fetchAll(PDO::FETCH_ASSOC);
+// Lấy danh mục đang xem
+$selected_id = $_GET['id'] ?? ($danhmuc[0]['ma_danh_muc'] ?? null);
+$selected_dm = null;
+$total_questions = 0;
+$avg_difficulty = 0;
+
+if($selected_id){
+    // Lấy thông tin danh mục
+    $sqlDetail = "SELECT * FROM danh_muc WHERE ma_danh_muc = ?";
+    $stmtDetail = $conn->prepare($sqlDetail);
+    $stmtDetail->execute([$selected_id]);
+    $selected_dm = $stmtDetail->fetch(PDO::FETCH_ASSOC);
+
+    // Đếm số câu hỏi trong danh mục
+    $sqlCount = "SELECT COUNT(*) FROM cau_hoi WHERE ma_danh_muc = ?";
+    $stmtCount = $conn->prepare($sqlCount);
+    $stmtCount->execute([$selected_id]);
+    $total_questions = $stmtCount->fetchColumn();
+
+    // Tính độ khó trung bình
+    $sqlDiff = "
+SELECT AVG(
+    CASE 
+        WHEN muc_do = 'de' THEN 1
+        WHEN muc_do = 'trung_binh' THEN 3
+        WHEN muc_do = 'kho' THEN 5
+    END
+) 
+FROM cau_hoi 
+WHERE ma_danh_muc = ?
+";
+
+$stmtDiff = $conn->prepare($sqlDiff);
+$stmtDiff->execute([$selected_id]);
+$avg_difficulty = round($stmtDiff->fetchColumn(),1);
+}
+// Thêm danh mục mới
+if(isset($_POST['ten_danh_muc'])){
+
+    $ten = $_POST['ten_danh_muc'];
+
+    $sqlInsert = "INSERT INTO danh_muc (ten_danh_muc) VALUES (?)";
+    $stmtInsert = $conn->prepare($sqlInsert);
+    $stmtInsert->execute([$ten]);
+
+    header("Location: ".$_SERVER['PHP_SELF']);
+    exit();
+}
 include 'components/header.php';
 include 'components/sidebar.php';
 ?>
@@ -62,45 +118,30 @@ include 'components/sidebar.php';
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div class="lg:col-span-1 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 h-fit transition-colors">
-                
-                <div class="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 text-[#254ada] dark:text-[#4b6bfb] rounded-lg font-bold text-sm mb-2 cursor-pointer border border-blue-100 dark:border-blue-800/50 transition">
-                    <span class="material-icons text-slate-400 dark:text-slate-500 text-[18px]">drag_indicator</span>
-                    <span class="material-icons text-[20px]">folder</span> Khoa Công nghệ Thông tin
-                </div>
-                
-                <div class="ml-9 border-l border-slate-200 dark:border-slate-700 pl-4 py-1 space-y-2">
-                    <div>
-                        <div class="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-medium text-sm cursor-pointer hover:text-[#254ada] dark:hover:text-[#4b6bfb] transition">
-                            <span class="material-icons text-slate-300 dark:text-slate-500 text-[18px]">drag_indicator</span>
-                            <span class="material-icons text-orange-400 text-[20px]">folder</span> Lập trình Cơ bản
-                        </div>
-                        <div class="ml-6 border-l border-slate-200 dark:border-slate-700 pl-4 py-2 space-y-2">
-                            <div class="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-[13px] hover:text-[#254ada] dark:hover:text-[#4b6bfb] cursor-pointer transition">
-                                <span class="material-icons text-[18px]">folder_open</span> Cấu trúc điều khiển
-                            </div>
-                            
-                            <div class="flex items-center justify-between p-2 bg-blue-50 dark:bg-blue-900/20 rounded-md text-[#254ada] dark:text-[#4b6bfb] font-medium text-[13px] cursor-pointer transition group">
-                                <div class="flex items-center gap-2">
-                                    <span class="material-icons text-[18px]">folder_open</span> Hàm và Đệ quy
-                                </div>
-                                <div class="flex gap-1 opacity-100">
-                                    <span onclick="showToast('info', 'Sửa', 'Sửa thông tin mục Hàm và Đệ quy')" class="material-icons text-[16px] hover:text-blue-800 dark:hover:text-white">edit</span>
-                                    <span onclick="showToast('error', 'Xóa', 'Xóa mục Hàm và Đệ quy')" class="material-icons text-[16px] text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400">delete</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-medium text-sm cursor-pointer hover:text-[#254ada] dark:hover:text-[#4b6bfb] mt-2 transition">
-                        <span class="material-icons text-slate-300 dark:text-slate-500 text-[18px]">drag_indicator</span>
-                        <span class="material-icons text-orange-400 text-[20px]">folder</span> Cơ sở Dữ liệu
-                    </div>
-                </div>
+        <?php foreach ($danhmuc as $dm): ?>
+<a href="?id=<?php echo $dm['ma_danh_muc']; ?>">
 
-                <div class="flex items-center gap-3 p-3 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg font-bold text-sm mt-2 cursor-pointer border border-transparent transition">
-                    <span class="material-icons text-slate-300 dark:text-slate-500 text-[18px]">drag_indicator</span>
-                    <span class="material-icons text-[#254ada] dark:text-[#4b6bfb] text-[20px]">folder</span> Khoa Kinh tế
-                </div>
+<div class="flex items-center justify-between p-3 
+<?php echo ($selected_id == $dm['ma_danh_muc']) ? 'bg-blue-100 dark:bg-blue-900/40' : 'bg-blue-50 dark:bg-blue-900/20'; ?>
+text-[#254ada] dark:text-[#4b6bfb] rounded-lg font-bold text-sm mb-2 
+cursor-pointer border border-blue-100 dark:border-blue-800/50 transition">
+
+    <div class="flex items-center gap-2">
+        <span class="material-icons text-[20px]">folder</span>
+        <?php echo htmlspecialchars($dm['ten_danh_muc']); ?>
+    </div>
+
+    <div class="flex gap-1">
+        <span onclick="editCategory(<?php echo $dm['ma_danh_muc']; ?>)"
+        class="material-icons text-[16px] hover:text-blue-800">edit</span>
+
+        <span onclick="deleteCategory(<?php echo $dm['ma_danh_muc']; ?>)"
+        class="material-icons text-[16px] text-red-500">delete</span>
+    </div>
+
+</div>
+</a>
+<?php endforeach; ?>
             </div>
 
             <div class="lg:col-span-2 space-y-6">
@@ -111,21 +152,25 @@ include 'components/sidebar.php';
                             <span class="material-icons text-[#254ada] dark:text-[#4b6bfb] bg-blue-50 dark:bg-blue-900/30 p-1.5 rounded-lg">analytics</span>
                             <h3 class="font-bold text-slate-800 dark:text-white text-lg">Chi tiết danh mục</h3>
                         </div>
-                        <span class="px-3 py-1 bg-blue-50 dark:bg-blue-900/30 text-[#254ada] dark:text-[#4b6bfb] text-[11px] font-bold rounded-full uppercase">Đang xem: Hàm và Đệ quy</span>
+                        <span class="px-3 py-1 bg-blue-50 dark:bg-blue-900/30 text-[#254ada] dark:text-[#4b6bfb] text-[11px] font-bold rounded-full uppercase">Đang xem: <?php echo $selected_dm['ten_danh_muc'] ?? ''; ?></span>
                     </div>
 
                     <div class="grid grid-cols-2 gap-4 mb-6">
                         <div class="border border-slate-200 dark:border-slate-600 rounded-xl p-5 bg-slate-50/50 dark:bg-slate-900/30 transition-colors">
                             <p class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Tổng số câu hỏi</p>
                             <div class="flex items-end gap-2">
-                                <span class="text-3xl font-black text-slate-800 dark:text-white">452</span>
+                                <span class="text-3xl font-black text-slate-800 dark:text-white"><span class="text-3xl font-black text-slate-800 dark:text-white">
+<?php echo $total_questions; ?>
+</span></span>
                                 <span class="text-xs font-semibold text-green-500 dark:text-green-400 mb-1 flex items-center"><span class="material-icons text-[14px]">trending_up</span> +5% tuần này</span>
                             </div>
                         </div>
                         <div class="border border-slate-200 dark:border-slate-600 rounded-xl p-5 bg-slate-50/50 dark:bg-slate-900/30 transition-colors">
                             <p class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Mức độ khó TB</p>
                             <div class="flex items-end gap-2">
-                                <span class="text-3xl font-black text-orange-500 dark:text-orange-400">3.8</span><span class="text-sm font-bold text-slate-400 dark:text-slate-500 mb-1">/5</span>
+                                <span class="text-3xl font-black text-orange-500 dark:text-orange-400"><span class="text-3xl font-black text-orange-500 dark:text-orange-400">
+<?php echo $avg_difficulty ?: 0; ?>
+</span></span><span class="text-sm font-bold text-slate-400 dark:text-slate-500 mb-1">/5</span>
                                 <div class="flex text-orange-400 dark:text-orange-300 mb-1.5 ml-2">
                                     <span class="material-icons text-[16px]">star</span><span class="material-icons text-[16px]">star</span><span class="material-icons text-[16px]">star</span><span class="material-icons text-[16px]">star_half</span><span class="material-icons text-[16px] text-slate-300 dark:text-slate-600">star</span>
                                 </div>
@@ -138,15 +183,12 @@ include 'components/sidebar.php';
                         <div class="space-y-4 text-sm">
                             <div class="grid grid-cols-4">
                                 <span class="text-slate-500 dark:text-slate-400 col-span-1">Tên chủ đề:</span>
-                                <span class="font-semibold text-slate-800 dark:text-white col-span-3">Hàm và Đệ quy</span>
+                                <span class="font-semibold text-slate-800 dark:text-white col-span-3"><?php echo $selected_dm['ten_danh_muc'] ?? ''; ?></span>
                             </div>
-                            <div class="grid grid-cols-4">
-                                <span class="text-slate-500 dark:text-slate-400 col-span-1">Danh mục cha:</span>
-                                <span class="font-medium text-orange-600 dark:text-orange-400 col-span-3">Lập trình Cơ bản</span>
-                            </div>
+                        
                             <div class="grid grid-cols-4">
                                 <span class="text-slate-500 dark:text-slate-400 col-span-1">Mô tả:</span>
-                                <span class="text-slate-600 dark:text-slate-300 italic col-span-3">Các khái niệm về hàm, truyền tham số, tham trị và các bài toán giải bằng phương pháp đệ quy.</span>
+                                <span class="text-slate-600 dark:text-slate-300 italic col-span-3"><?php echo $selected_dm['mo_ta'] ?? 'Chưa có mô tả'; ?></span>
                             </div>
                             <div class="grid grid-cols-4 items-center">
                                 <span class="text-slate-500 dark:text-slate-400 col-span-1">Người quản lý:</span>
@@ -193,11 +235,11 @@ include 'components/sidebar.php';
             <button type="button" onclick="closeModal('addCategoryModal')" class="text-slate-400 hover:text-red-500 transition focus:outline-none"><span class="material-icons">close</span></button>
         </div>
         
-        <form id="formAddCategory" onsubmit="event.preventDefault(); submitAddCategory();" class="flex-1 overflow-y-auto custom-scrollbar p-5">
-            <div class="mb-4">
-                <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Tên danh mục <span class="text-red-500">*</span></label>
-                <input type="text" placeholder="VD: Lập trình Web..." required class="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-[#254ada] focus:outline-none transition">
-            </div>
+        <form method="POST" id="formAddCategory">
+            <input type="text" name="ten_danh_muc"
+placeholder="VD: Lập trình Web..." 
+required
+class="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg px-3.5 py-2.5 text-sm">
             
             <div class="mb-4">
                 <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Danh mục cha</label>

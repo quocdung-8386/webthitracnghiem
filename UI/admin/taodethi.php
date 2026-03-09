@@ -1,116 +1,365 @@
 <?php
-// 1. Cấu hình thông tin trang
-$title = "Tạo đề thi mới - Hệ Thống Thi Trực Tuyến";
-$active_menu = "create_exam"; // Biến này sẽ làm sáng menu "Tạo đề thi" trong Sidebar
 
-// Nhúng Header và Sidebar
+$title = "Tạo đề thi mới - Hệ Thống Thi Trực Tuyến";
+$active_menu = "create_exam";
+
+require_once __DIR__ . '/../../app/config/Database.php';
+
+session_start();
+
+$conn = Database::getConnection();
+
+$success = "";
+$error = "";
+
+/* ================================
+   XỬ LÝ TẠO ĐỀ THI
+================================ */
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_exam'])) {
+
+    $tieu_de   = trim($_POST['tieu_de'] ?? '');
+    $thoi_gian = intval($_POST['thoi_gian'] ?? 0);
+
+    $topic_ids = $_POST['topic_id'] ?? [];
+    $easy      = $_POST['easy'] ?? [];
+    $medium    = $_POST['medium'] ?? [];
+    $hard      = $_POST['hard'] ?? [];
+
+    $ma_giao_vien = $_SESSION['user_id'] ?? 1;
+
+    if ($tieu_de === "" || $thoi_gian <= 0) {
+        $error = "Vui lòng nhập đầy đủ thông tin đề thi.";
+    } else {
+
+        try {
+
+            $conn->beginTransaction();
+
+            /* ================================
+               1. LƯU ĐỀ THI
+            ================================ */
+
+            $sql = "
+                INSERT INTO de_thi (ma_giao_vien, tieu_de, thoi_gian_lam)
+                VALUES (:gv, :title, :time)
+            ";
+
+            $stmt = $conn->prepare($sql);
+
+            $stmt->execute([
+                ':gv'    => $ma_giao_vien,
+                ':title' => $tieu_de,
+                ':time'  => $thoi_gian
+            ]);
+
+            $ma_de_thi = $conn->lastInsertId();
+
+            /* ================================
+               2. PREPARE INSERT CHI TIẾT ĐỀ
+            ================================ */
+
+            $sqlInsert = "
+                INSERT INTO chi_tiet_de_thi (ma_de_thi, ma_cau_hoi, diem)
+                VALUES (:de, :cau, 1)
+            ";
+
+            $stmtInsert = $conn->prepare($sqlInsert);
+
+            /* ================================
+               3. DUYỆT MA TRẬN CÂU HỎI
+            ================================ */
+
+            for ($i = 0; $i < count($topic_ids); $i++) {
+
+                $topic = $topic_ids[$i];
+
+                $levels = [
+                    'de'          => intval($easy[$i] ?? 0),
+                    'trung_binh'  => intval($medium[$i] ?? 0),
+                    'kho'         => intval($hard[$i] ?? 0)
+                ];
+
+                foreach ($levels as $level => $limit) {
+
+                    if ($limit <= 0) continue;
+
+                    $sqlQ = "
+                        SELECT ma_cau_hoi
+                        FROM cau_hoi
+                        WHERE ma_danh_muc = :topic
+                        AND muc_do = :level
+                        AND trang_thai_duyet = 'da_duyet'
+                        ORDER BY RAND()
+                        LIMIT $limit
+                    ";
+
+                    $stmtQ = $conn->prepare($sqlQ);
+
+                    $stmtQ->execute([
+                        ':topic' => $topic,
+                        ':level' => $level
+                    ]);
+
+                    $questions = $stmtQ->fetchAll(PDO::FETCH_ASSOC);
+
+                    foreach ($questions as $q) {
+
+                        $stmtInsert->execute([
+                            ':de'  => $ma_de_thi,
+                            ':cau' => $q['ma_cau_hoi']
+                        ]);
+                    }
+                }
+            }
+
+            $conn->commit();
+
+            $success = "Tạo đề thi thành công!";
+
+        } catch (Exception $e) {
+
+            $conn->rollBack();
+            $error = "Lỗi hệ thống: " . $e->getMessage();
+        }
+    }
+}
+
+
+/* ================================
+   LẤY DANH SÁCH CHỦ ĐỀ
+================================ */
+/* lấy danh sách chủ đề cho ma trận */
+$sqlTopic = "
+SELECT 
+    dm.ma_danh_muc,
+    dm.ten_danh_muc,
+    COUNT(ch.ma_cau_hoi) AS tong_cau
+FROM danh_muc dm
+LEFT JOIN cau_hoi ch 
+    ON dm.ma_danh_muc = ch.ma_danh_muc
+    AND ch.trang_thai_duyet='da_duyet'
+GROUP BY dm.ma_danh_muc
+ORDER BY dm.ten_danh_muc
+";
+
+$stmtTopic = $conn->query($sqlTopic);
+
+$topics = $stmtTopic->fetchAll(PDO::FETCH_ASSOC);
+
+
+/* ================================
+   LOAD UI
+================================ */
+
 include 'components/header.php';
 include 'components/sidebar.php';
+
 ?>
 
 <main
     class="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 dark:bg-slate-900 transition-colors duration-200">
     <header
-        class="h-16 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-6 flex items-center justify-between z-10 shrink-0 transition-colors">
-        <div class="text-sm text-slate-500 dark:text-slate-400">
-            Kỳ thi & Đề thi <span class="mx-2">›</span> <span class="text-slate-800 dark:text-white font-medium">Tạo đề thi mới</span>
+    class="h-16 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-6 flex items-center justify-between z-10 shrink-0 transition-colors">
 
-        <div class="flex items-center gap-5">
-            <div class="relative">
-                <button id="notifButton" type="button"
-                    class="relative text-slate-500 dark:text-slate-400 hover:text-[#254ada] dark:hover:text-[#4b6bfb] transition focus:outline-none">
-                    <span class="material-icons">notifications</span>
-                    <span
-                        class="absolute top-0 right-1 w-2 h-2 bg-red-500 rounded-full border border-white dark:border-slate-800"></span>
-                </button>
-                <div id="notifDropdown"
-                    class="hidden absolute right-0 mt-3 w-80 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700 z-50 overflow-hidden transform transition-all">
-                    <div
-                        class="px-4 py-3 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
-                        <span class="font-bold text-sm text-slate-800 dark:text-white">Thông báo mới</span>
-                        <a href="#"
-                            class="text-[11px] text-[#254ada] dark:text-[#4b6bfb] hover:underline font-medium">Đánh dấu
-                            đã đọc</a>
-                    </div>
-                    <div class="max-h-[300px] overflow-y-auto custom-scrollbar">
-                        <a href="#"
-                            class="block px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 border-b border-slate-50 dark:border-slate-700 transition">
-                            <p class="text-[13px] text-slate-700 dark:text-slate-300 leading-snug"><span
-                                    class="font-semibold text-slate-800 dark:text-white">Hệ thống</span> vừa cập nhật
-                                lại ngân hàng câu hỏi môn Toán học.</p>
-                            <span class="text-[11px] text-slate-400 mt-1.5 flex items-center gap-1"><span
-                                    class="material-icons text-[12px]">schedule</span> 15 phút trước</span>
-                        </a>
-                    </div>
+    <!-- Breadcrumb -->
+    <div class="text-sm text-slate-500 dark:text-slate-400">
+        Kỳ thi & Đề thi 
+        <span class="mx-2">›</span> 
+        <span class="text-slate-800 dark:text-white font-medium">
+            Tạo đề thi mới
+        </span>
+    </div>
+
+    <!-- Right actions -->
+    <div class="flex items-center gap-5">
+
+        <!-- Notification -->
+        <div class="relative">
+            <button id="notifButton" type="button"
+                class="relative text-slate-500 dark:text-slate-400 hover:text-[#254ada] dark:hover:text-[#4b6bfb] transition focus:outline-none">
+                <span class="material-icons">notifications</span>
+
+                <!-- Dot -->
+                <span
+                    class="absolute top-0 right-1 w-2 h-2 bg-red-500 rounded-full border border-white dark:border-slate-800">
+                </span>
+            </button>
+
+            <!-- Dropdown -->
+            <div id="notifDropdown"
+                class="hidden absolute right-0 mt-3 w-80 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700 z-50 overflow-hidden transform transition-all">
+
+                <div
+                    class="px-4 py-3 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                    <span class="font-bold text-sm text-slate-800 dark:text-white">
+                        Thông báo mới
+                    </span>
+
                     <a href="#"
-                        class="block px-4 py-2.5 text-center text-sm text-[#254ada] dark:text-[#4b6bfb] font-medium bg-slate-50 dark:bg-slate-700/30 hover:bg-slate-100 dark:hover:bg-slate-700 transition border-t border-slate-100 dark:border-slate-700">Xem
-                        tất cả</a>
+                        class="text-[11px] text-[#254ada] dark:text-[#4b6bfb] hover:underline font-medium">
+                        Đánh dấu đã đọc
+                    </a>
                 </div>
+
+                <div class="max-h-[300px] overflow-y-auto custom-scrollbar">
+
+                    <a href="#"
+                        class="block px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 border-b border-slate-50 dark:border-slate-700 transition">
+
+                        <p class="text-[13px] text-slate-700 dark:text-slate-300 leading-snug">
+                            <span class="font-semibold text-slate-800 dark:text-white">
+                                Hệ thống
+                            </span>
+                            vừa cập nhật lại ngân hàng câu hỏi môn Toán học.
+                        </p>
+
+                        <span class="text-[11px] text-slate-400 mt-1.5 flex items-center gap-1">
+                            <span class="material-icons text-[12px]">schedule</span>
+                            15 phút trước
+                        </span>
+
+                    </a>
+
+                </div>
+
+                <a href="#"
+                    class="block px-4 py-2.5 text-center text-sm text-[#254ada] dark:text-[#4b6bfb] font-medium bg-slate-50 dark:bg-slate-700/30 hover:bg-slate-100 dark:hover:bg-slate-700 transition border-t border-slate-100 dark:border-slate-700">
+                    Xem tất cả
+                </a>
+
             </div>
-
-            <button id="darkModeToggle"
-                class="text-slate-500 dark:text-slate-400 hover:text-[#254ada] dark:hover:text-[#4b6bfb] transition focus:outline-none">
-                <span class="material-icons" id="darkModeIcon">dark_mode</span>
-            </button>
-
-            <button onclick="handleSaveExam(this)"
-                class="px-5 py-2 bg-[#254ada] dark:bg-[#4b6bfb] text-white rounded-lg flex items-center gap-2 hover:bg-[#1e3bb3] dark:hover:bg-[#254ada] text-sm font-medium shadow-sm transition ml-2">
-                <span class="material-icons text-[18px]">save</span> Lưu đề thi
-            </button>
         </div>
-    </header>
 
+        <!-- Dark mode -->
+        <button id="darkModeToggle"
+            class="text-slate-500 dark:text-slate-400 hover:text-[#254ada] dark:hover:text-[#4b6bfb] transition focus:outline-none">
+            <span class="material-icons" id="darkModeIcon">dark_mode</span>
+        </button>
+
+        <!-- Save button -->
+        <button type="submit" name="save_exam"
+            class="px-5 py-2 bg-[#254ada] dark:bg-[#4b6bfb] text-white rounded-lg flex items-center gap-2 hover:bg-[#1e3bb3] dark:hover:bg-[#254ada] text-sm font-medium shadow-sm transition ml-2">
+            <span class="material-icons text-[18px]">save</span>
+            Lưu đề thi
+        </button>
+
+    </div>
+
+</header>
     <div class="flex-1 overflow-y-auto p-8 custom-scrollbar">
-        <div class="max-w-5xl mx-auto space-y-6">
+    <form method="POST">
+<div class="max-w-5xl mx-auto space-y-6">
 
-            <div
-                class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-6 transition-colors">
-                <h3 class="font-bold text-slate-800 dark:text-white flex items-center gap-2 mb-6">
-                    <span class="material-icons text-slate-400 dark:text-slate-500 text-[20px]">info</span> Thông tin cơ
-                    bản
-                </h3>
+<div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-6 transition-colors">
 
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-5">
-                    <div class="md:col-span-2">
-                        <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Tên đề
-                            thi <span class="text-red-500">*</span></label>
-                        <input type="text" placeholder="Nhập tên đề thi (vd: Đề thi giữa kỳ môn Toán)"
-                            class="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#254ada] focus:border-[#254ada] transition">
-                    </div>
-                    <div class="md:col-span-1">
-                        <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Môn học
-                            <span class="text-red-500">*</span></label>
-                        <select
-                            class="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#254ada] focus:border-[#254ada] text-slate-600 dark:text-slate-300 transition">
-                            <option value="">Chọn môn học</option>
-                            <option value="toan">Toán học</option>
-                            <option value="ly">Vật lý</option>
-                        </select>
-                    </div>
-                    <div class="md:col-span-1">
-                        <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Thời
-                            gian (phút) <span class="text-red-500">*</span></label>
-                        <input type="number" value="60"
-                            class="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#254ada] focus:border-[#254ada] transition">
-                    </div>
-                </div>
+<h3 class="font-bold text-slate-800 dark:text-white flex items-center gap-2 mb-6">
+<span class="material-icons text-slate-400 dark:text-slate-500 text-[20px]">info</span>
+Thông tin cơ bản
+</h3>
 
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-5">
-                    <div class="md:col-span-1">
-                        <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Số
-                            lượng câu hỏi <span class="text-red-500">*</span></label>
-                        <input type="number" id="targetTotalQuestions" value="40"
-                            class="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#254ada] focus:border-[#254ada] transition font-bold text-[#254ada] dark:text-[#4b6bfb]">
-                    </div>
-                </div>
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-5">
 
-                <div>
-                    <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Mô tả đề
-                        thi</label>
-                    <textarea rows="3" placeholder="Ghi chú thêm về đề thi..."
-                        class="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#254ada] focus:border-[#254ada] transition text-slate-600 dark:text-slate-300 resize-none"></textarea>
-                </div>
-            </div>
+<!-- TÊN ĐỀ THI -->
+<div class="md:col-span-2">
+
+<label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+Tên đề thi <span class="text-red-500">*</span>
+</label>
+
+<input 
+type="text"
+name="tieu_de"
+required
+placeholder="Nhập tên đề thi..."
+class="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#254ada] focus:border-[#254ada] transition">
+
+</div>
+
+<!-- DANH MỤC -->
+<div class="md:col-span-1">
+
+<label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+Danh mục <span class="text-red-500">*</span>
+</label>
+
+<select 
+name="ma_danh_muc"
+required
+class="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#254ada] focus:border-[#254ada] transition">
+
+<option value="">-- Chọn danh mục --</option>
+
+<?php foreach ($danhmucs as $dm): ?>
+
+<option value="<?= $dm['ma_danh_muc'] ?>">
+<?= htmlspecialchars($dm['ten_danh_muc']) ?>
+</option>
+
+<?php endforeach; ?>
+
+</select>
+
+</div>
+
+<!-- THỜI GIAN -->
+<div class="md:col-span-1">
+
+<label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+Thời gian (phút) <span class="text-red-500">*</span>
+</label>
+
+<input 
+type="number"
+name="thoi_gian"
+required
+min="1"
+placeholder="VD: 60"
+class="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#254ada] focus:border-[#254ada] transition">
+
+</div>
+
+</div>
+
+<!-- SỐ CÂU -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-5">
+
+<div class="md:col-span-1">
+
+<label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+Số lượng câu hỏi <span class="text-red-500">*</span>
+</label>
+
+<input 
+type="number"
+id="targetTotalQuestions"
+name="so_cau"
+required
+min="1"
+placeholder="VD: 40"
+class="w-full px-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#254ada] focus:border-[#254ada] transition font-bold text-[#254ada] dark:text-[#4b6bfb]">
+
+</div>
+
+</div>
+
+<!-- MÔ TẢ -->
+<div>
+
+<label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+Mô tả đề thi
+</label>
+
+<textarea 
+name="mo_ta"
+rows="3"
+placeholder="Ghi chú thêm về đề thi..."
+class="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#254ada] focus:border-[#254ada] transition text-slate-600 dark:text-slate-300 resize-none"></textarea>
+
+</div>
+
+</div>
+</div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div
@@ -172,77 +421,59 @@ include 'components/sidebar.php';
                         </thead>
                         <tbody class="divide-y divide-slate-100 dark:divide-slate-700 text-sm">
 
-                            <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-700/50 transition">
-                                <td class="py-4 px-2">
-                                    <div class="font-bold text-slate-700 dark:text-slate-300">Chủ đề 1: Đạo hàm & Tích
-                                        phân</div>
-                                    <div class="text-[11px] text-slate-400 dark:text-slate-500 mt-1">Kho lưu trữ: <span
-                                            class="font-semibold text-slate-500 dark:text-slate-400">150</span> câu
-                                    </div>
-                                </td>
-                                <td class="py-4 px-2 text-center"><input type="number" value="5" min="0"
-                                        class="matrix-input w-16 h-10 text-center bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white rounded-lg text-sm focus:outline-none focus:border-[#254ada] transition">
-                                </td>
-                                <td class="py-4 px-2 text-center"><input type="number" value="3" min="0"
-                                        class="matrix-input w-16 h-10 text-center bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white rounded-lg text-sm focus:outline-none focus:border-[#254ada] transition">
-                                </td>
-                                <td class="py-4 px-2 text-center"><input type="number" value="2" min="0"
-                                        class="matrix-input w-16 h-10 text-center bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white rounded-lg text-sm focus:outline-none focus:border-[#254ada] transition">
-                                </td>
-                                <td class="py-4 px-2 text-center font-bold text-slate-800 dark:text-white row-total">10
-                                </td>
-                                <td class="py-4 px-2 text-center">
-                                    <button
-                                        class="w-8 h-8 mx-auto bg-red-50 dark:bg-red-900/30 text-red-500 dark:text-red-400 hover:bg-red-500 dark:hover:bg-red-500 hover:text-white dark:hover:text-white rounded-md flex items-center justify-center transition"
-                                        title="Xóa chủ đề">
-                                        <span class="material-icons text-[18px]">delete</span>
-                                    </button>
-                                </td>
-                            </tr>
+<?php foreach($topics as $t): ?>
 
-                            <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-700/50 transition">
-                                <td class="py-4 px-2">
-                                    <div class="font-bold text-slate-700 dark:text-slate-300">Chủ đề 2: Số phức & Hình
-                                        học</div>
-                                    <div class="text-[11px] text-slate-400 dark:text-slate-500 mt-1">Kho lưu trữ: <span
-                                            class="font-semibold text-slate-500 dark:text-slate-400">85</span> câu</div>
-                                </td>
-                                <td class="py-4 px-2 text-center"><input type="number" value="8" min="0"
-                                        class="matrix-input w-16 h-10 text-center bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white rounded-lg text-sm focus:outline-none focus:border-[#254ada] transition">
-                                </td>
-                                <td class="py-4 px-2 text-center"><input type="number" value="5" min="0"
-                                        class="matrix-input w-16 h-10 text-center bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white rounded-lg text-sm focus:outline-none focus:border-[#254ada] transition">
-                                </td>
-                                <td class="py-4 px-2 text-center"><input type="number" value="2" min="0"
-                                        class="matrix-input w-16 h-10 text-center bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white rounded-lg text-sm focus:outline-none focus:border-[#254ada] transition">
-                                </td>
-                                <td class="py-4 px-2 text-center font-bold text-slate-800 dark:text-white row-total">15
-                                </td>
-                                <td class="py-4 px-2 text-center">
-                                    <button
-                                        class="w-8 h-8 mx-auto bg-red-50 dark:bg-red-900/30 text-red-500 dark:text-red-400 hover:bg-red-500 dark:hover:bg-red-500 hover:text-white dark:hover:text-white rounded-md flex items-center justify-center transition"
-                                        title="Xóa chủ đề">
-                                        <span class="material-icons text-[18px]">delete</span>
-                                    </button>
-                                </td>
-                            </tr>
+<tr class="hover:bg-slate-50/50 dark:hover:bg-slate-700/50 transition">
 
-                            <tr
-                                class="bg-blue-50/50 dark:bg-blue-900/10 border-t-2 border-[#254ada] dark:border-[#4b6bfb]">
-                                <td class="py-4 px-2 text-right font-bold text-slate-800 dark:text-white pr-6">TỔNG CỘNG
-                                    HỆ THỐNG TÍNH</td>
-                                <td class="py-4 px-2 text-center font-bold text-green-600 dark:text-green-400"
-                                    id="colEasyTotal">13</td>
-                                <td class="py-4 px-2 text-center font-bold text-orange-500 dark:text-orange-400"
-                                    id="colMediumTotal">8</td>
-                                <td class="py-4 px-2 text-center font-bold text-red-500 dark:text-red-400"
-                                    id="colHardTotal">4</td>
-                                <td class="py-4 px-2 text-center font-black text-2xl text-[#254ada] dark:text-[#4b6bfb]"
-                                    id="grandTotal">25</td>
-                                <td class="py-4 px-2 text-center text-xs text-slate-500 dark:text-slate-400">câu hỏi
-                                </td>
-                            </tr>
-                        </tbody>
+<td class="py-4 px-2">
+
+<div class="font-bold text-slate-700 dark:text-slate-300">
+<?php echo $t['ten_danh_muc']; ?>
+</div>
+
+<div class="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+Kho lưu trữ:
+<span class="font-semibold text-slate-500 dark:text-slate-400">
+<?php echo $t['tong_cau']; ?>
+</span> câu
+</div>
+
+<input type="hidden" name="topic_id[]" value="<?php echo $t['ma_danh_muc']; ?>">
+
+</td>
+
+<td class="py-4 px-2 text-center">
+
+<input type="number" name="easy[]" value="0" min="0"
+class="matrix-input w-16 h-10 text-center bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm">
+
+</td>
+
+<td class="py-4 px-2 text-center">
+
+<input type="number" name="medium[]" value="0" min="0"
+class="matrix-input w-16 h-10 text-center bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm">
+
+</td>
+
+<td class="py-4 px-2 text-center">
+
+<input type="number" name="hard[]" value="0" min="0"
+class="matrix-input w-16 h-10 text-center bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm">
+
+</td>
+
+<td class="py-4 px-2 text-center font-bold text-slate-800 dark:text-white row-total">
+0
+</td>
+
+<td class="py-4 px-2 text-center">
+-
+</td>
+
+</tr>
+
+<?php endforeach; ?>
                     </table>
                 </div>
 
@@ -271,7 +502,8 @@ include 'components/sidebar.php';
                 class="material-icons text-[16px]">close</span></button>
     </div>
 </template>
-
+</div>
+</form>
 <?php include 'components/footer.php'; ?>
 
 <script>

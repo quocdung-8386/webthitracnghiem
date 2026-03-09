@@ -2,11 +2,50 @@
 $title = "Quản lý phiên bản - Hệ Thống Thi Trực Tuyến";
 $active_menu = "version_q"; // Sáng menu ở sidebar
 
-$versions = [
-    ['code' => 'MATH-101-001', 'content' => 'Cho hàm số y = ax^2 + bx + c. Tìm điều kiện...', 'version' => 'v2.1', 'author' => 'Trần Thị Hoa', 'author_bg' => 'bg-purple-100', 'author_text' => 'text-purple-700', 'time' => '10:30 - 24/10/2023', 'status' => 'Bản hiện tại', 'status_bg' => 'bg-green-100', 'status_text' => 'text-green-700'],
-    ['code' => 'PHYS-12-254', 'content' => 'Một vật dao động điều hòa với phương trình x =...', 'version' => 'v1.4', 'author' => 'Nguyễn Văn An', 'author_bg' => 'bg-blue-100', 'author_text' => 'text-blue-700', 'time' => '15:45 - 23/10/2023', 'status' => 'Bản hiện tại', 'status_bg' => 'bg-green-100', 'status_text' => 'text-green-700'],
-    ['code' => 'CHEM-11-042', 'content' => 'Hòa tan hoàn toàn 10g hỗn hợp X gồm Mg và Fe...', 'version' => 'v1.0', 'author' => 'Lê Hữu Trí', 'author_bg' => 'bg-orange-100', 'author_text' => 'text-orange-700', 'time' => '09:15 - 20/10/2023', 'status' => 'Bản cũ', 'status_bg' => 'bg-slate-100', 'status_text' => 'text-slate-600'],
-];
+require_once __DIR__ . '/../../app/config/Database.php';
+$conn = Database::getConnection();
+
+$sql = "
+SELECT 
+    ch.ma_cau_hoi AS code,
+    LEFT(pv.noi_dung,120) AS content,
+    pv.version,
+    nd.ho_ten AS author,
+    pv.thoi_gian_cap_nhat AS time,
+    pv.trang_thai
+FROM phien_ban_cau_hoi pv
+JOIN cau_hoi ch ON pv.ma_cau_hoi = ch.ma_cau_hoi
+JOIN nguoi_dung nd ON pv.ma_nguoi_cap_nhat = nd.ma_nguoi_dung
+ORDER BY pv.thoi_gian_cap_nhat DESC
+";
+
+$result = $conn->query($sql);
+
+$versions = [];
+
+while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
+
+    if ($row['trang_thai'] == 'current') {
+        $status = "Bản hiện tại";
+        $bg = "bg-green-100";
+        $text = "text-green-700";
+    } else {
+        $status = "Bản cũ";
+        $bg = "bg-slate-100";
+        $text = "text-slate-600";
+    }
+
+    $versions[] = [
+        'code' => $row['code'],
+        'content' => $row['content'],
+        'version' => $row['version'],
+        'author' => $row['author'],
+        'time' => date("H:i - d/m/Y", strtotime($row['time'])),
+        'status' => $status,
+        'status_bg' => $bg,
+        'status_text' => $text
+    ];
+}
 
 include 'components/header.php';
 include 'components/sidebar.php';

@@ -2,11 +2,89 @@
 $title = "Duyệt câu hỏi - Hệ Thống Thi Trực Tuyến";
 $active_menu = "approve_q"; 
 
-$pending_q = [
-    ['code' => 'BIO-10-005', 'content' => 'Quá trình quang hợp ở thực vật diễn ra chủ yếu ở bào quan nào?', 'subject' => 'Sinh học 10', 'author' => 'Giảng viên A', 'time' => '10 phút trước', 'level' => 'Nhận biết'],
-    ['code' => 'HIS-12-112', 'content' => 'Sự kiện nào đánh dấu bước ngoặt của cuộc kháng chiến chống Mỹ?', 'subject' => 'Lịch sử 12', 'author' => 'Giảng viên B', 'time' => '1 giờ trước', 'level' => 'Thông hiểu'],
-    ['code' => 'ENG-9-045', 'content' => 'Rewrite the sentence without changing its meaning: "Although it rained..."', 'subject' => 'Tiếng Anh 9', 'author' => 'Giảng viên C', 'time' => 'Hôm qua', 'level' => 'Vận dụng'],
-];
+require_once __DIR__ . '/../../app/config/Database.php';
+$conn = Database::getConnection();
+
+
+/* =========================
+   XỬ LÝ DUYỆT / TỪ CHỐI
+========================= */
+
+if(isset($_GET['action']) && isset($_GET['id'])){
+
+    $id = intval($_GET['id']);
+    $action = $_GET['action'];
+
+    if($action == "approve"){
+        $status = "da_duyet";
+    }
+    elseif($action == "reject"){
+        $status = "tu_choi";
+    }
+    else{
+        $status = null;
+    }
+
+    if($status){
+        $sqlUpdate = "UPDATE cau_hoi 
+                      SET trang_thai_duyet = :status 
+                      WHERE ma_cau_hoi = :id";
+
+        $stmtUpdate = $conn->prepare($sqlUpdate);
+
+        $stmtUpdate->execute([
+            'status' => $status,
+            'id' => $id
+        ]);
+
+        header("Location: ".$_SERVER['PHP_SELF']);
+        exit();
+    }
+}
+
+
+/* =========================
+   LẤY DANH SÁCH CHỜ DUYỆT
+========================= */
+
+$sql = "
+SELECT 
+    ch.ma_cau_hoi,
+    ch.noi_dung,
+    ch.muc_do,
+    ch.ngay_tao,
+    dm.ten_danh_muc,
+    nd.ho_ten
+FROM cau_hoi ch
+LEFT JOIN danh_muc dm ON ch.ma_danh_muc = dm.ma_danh_muc
+LEFT JOIN nguoi_dung nd ON ch.ma_giao_vien = nd.ma_nguoi_dung
+WHERE ch.trang_thai_duyet = 'cho_duyet'
+ORDER BY ch.ngay_tao DESC
+";
+
+$stmt = $conn->query($sql);
+
+$pending_q = [];
+
+while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+
+    switch($row['muc_do']){
+        case 'de': $level = "Nhận biết"; break;
+        case 'trung_binh': $level = "Thông hiểu"; break;
+        case 'kho': $level = "Vận dụng"; break;
+        default: $level = "Khác";
+    }
+
+    $pending_q[] = [
+        'id' => $row['ma_cau_hoi'],
+        'code' => 'Q-'.$row['ma_cau_hoi'],
+        'content' => mb_substr($row['noi_dung'],0,120,'UTF-8').'...',
+        'subject' => $row['ten_danh_muc'],
+        'author' => $row['ho_ten'],
+        'time' => date("d/m/Y H:i", strtotime($row['ngay_tao'])),
+        'level' => $level
+    ];
+}
 
 include 'components/header.php';
 include 'components/sidebar.php';
@@ -120,19 +198,38 @@ include 'components/sidebar.php';
                                 <div class="font-medium text-slate-800 dark:text-white text-[13px]"><?php echo $q['author']; ?></div>
                                 <div class="text-[11px] text-slate-400 mt-0.5"><?php echo $q['time']; ?></div>
                             </td>
-                            <td class="px-6 py-4 text-center">
-                                <div class="flex items-center justify-center gap-2">
-                                    <button onclick="showToast('success', 'Đã duyệt', 'Câu hỏi <?php echo $q['code']; ?> đã được thêm vào Ngân hàng.')" class="w-8 h-8 rounded-full bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-500 dark:hover:bg-green-500 hover:text-white dark:hover:text-white transition flex items-center justify-center" title="Phê duyệt">
-                                        <span class="material-icons text-[18px]">check</span>
-                                    </button>
-                                    <button onclick="showToast('error', 'Từ chối', 'Đã gửi yêu cầu chỉnh sửa lại câu hỏi <?php echo $q['code']; ?> cho giảng viên.')" class="w-8 h-8 rounded-full bg-red-50 dark:bg-red-900/30 text-red-500 dark:text-red-400 hover:bg-red-500 dark:hover:bg-red-500 hover:text-white dark:hover:text-white transition flex items-center justify-center" title="Từ chối/Yêu cầu sửa">
-                                        <span class="material-icons text-[18px]">close</span>
-                                    </button>
-                                    <button onclick="showToast('info', 'Chi tiết', 'Mở bảng xem chi tiết câu hỏi <?php echo $q['code']; ?>')" class="w-8 h-8 rounded-full bg-slate-50 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600 hover:text-slate-800 dark:hover:text-white transition flex items-center justify-center" title="Xem chi tiết">
-                                        <span class="material-icons text-[18px]">visibility</span>
-                                    </button>
-                                </div>
-                            </td>
+                          <td class="px-6 py-4 text-center">
+<div class="flex items-center justify-center gap-2">
+
+<a href="?action=approve&id=<?php echo $q['id']; ?>"
+class="w-8 h-8 rounded-full bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-500 hover:text-white transition flex items-center justify-center"
+title="Phê duyệt">
+
+<span class="material-icons text-[18px]">check</span>
+
+</a>
+
+
+<a href="?action=reject&id=<?php echo $q['id']; ?>"
+onclick="return confirm('Bạn có chắc muốn từ chối câu hỏi này?')"
+class="w-8 h-8 rounded-full bg-red-50 dark:bg-red-900/30 text-red-500 dark:text-red-400 hover:bg-red-500 hover:text-white transition flex items-center justify-center"
+title="Từ chối">
+
+<span class="material-icons text-[18px]">close</span>
+
+</a>
+
+
+<button onclick="showToast('info','Chi tiết','Mở chi tiết câu hỏi <?php echo $q['code']; ?>')"
+class="w-8 h-8 rounded-full bg-slate-50 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600 hover:text-slate-800 dark:hover:text-white transition flex items-center justify-center"
+title="Xem chi tiết">
+
+<span class="material-icons text-[18px]">visibility</span>
+
+</button>
+
+</div>
+</td>
                         </tr>
                         <?php endforeach; ?>
                     </tbody>

@@ -1,12 +1,56 @@
 <?php
 $title = "Nhập/Xuất câu hỏi - Hệ Thống Thi Trực Tuyến";
 $active_menu = "import_q"; 
+require_once __DIR__ . '/../../app/config/Database.php';
+$conn = Database::getConnection();
 
-$preview_data = [
-    ['stt' => 1, 'content' => 'Hàm số y = f(x) đồng biến trên khoảng nào dưới đây?', 'category' => 'Giải tích 12', 'level' => 'Trung bình', 'level_color' => 'bg-blue-50 text-blue-600 dark:bg-opacity-20 dark:text-blue-400', 'status' => 'Sẵn sàng', 'status_icon' => 'check_circle', 'status_color' => 'text-green-500 dark:text-green-400'],
-    ['stt' => 2, 'content' => 'Tìm nguyên hàm của hàm số f(x) = ...', 'category' => 'Giải tích 12', 'level' => 'Khó', 'level_color' => 'bg-orange-50 text-orange-600 dark:bg-opacity-20 dark:text-orange-400', 'status' => 'Thiếu đáp án', 'status_icon' => 'error', 'status_color' => 'text-red-500 dark:text-red-400'],
-];
+$sql = "
+SELECT 
+    c.ma_cau_hoi,
+    c.noi_dung,
+    c.muc_do,
+    d.ten_danh_muc
+FROM cau_hoi c
+LEFT JOIN danh_muc d ON c.ma_danh_muc = d.ma_danh_muc
+ORDER BY c.ma_cau_hoi DESC
+LIMIT 50
+";
 
+$stmt = $conn->prepare($sql);
+$stmt->execute();
+$questions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$preview_data = [];
+$stt = 1;
+
+foreach($questions as $q){
+
+    // Xử lý màu mức độ
+    $level_color = "";
+    if($q['muc_do'] == 'de'){
+        $level = "Dễ";
+        $level_color = "bg-green-50 text-green-600 dark:bg-opacity-20 dark:text-green-400";
+    }
+    elseif($q['muc_do'] == 'trung_binh'){
+        $level = "Trung bình";
+        $level_color = "bg-blue-50 text-blue-600 dark:bg-opacity-20 dark:text-blue-400";
+    }
+    else{
+        $level = "Khó";
+        $level_color = "bg-orange-50 text-orange-600 dark:bg-opacity-20 dark:text-orange-400";
+    }
+
+    $preview_data[] = [
+        'stt' => $stt++,
+        'content' => $q['noi_dung'],
+        'category' => $q['ten_danh_muc'] ?? 'Chưa phân loại',
+        'level' => $level,
+        'level_color' => $level_color,
+        'status' => 'Sẵn sàng',
+        'status_icon' => 'check_circle',
+        'status_color' => 'text-green-500 dark:text-green-400'
+    ];
+}
 include 'components/header.php';
 include 'components/sidebar.php';
 ?>
