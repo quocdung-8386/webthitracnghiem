@@ -6,138 +6,129 @@ require_once __DIR__ . '/../../app/config/Database.php';
 $conn = Database::getConnection();
 
 /* =========================
-   LẤY FILTER (SỬ DỤNG CHO PHP)
+   LẤY FILTER
 ========================= */
 $search = $_GET['search'] ?? '';
-$user = $_GET['user'] ?? '';
-$date = $_GET['date'] ?? '';
+$user   = $_GET['user'] ?? '';
+$date   = $_GET['date'] ?? '';
 
 /* =========================
-   QUERY DATABASE
+   PHÂN TRANG
 ========================= */
-// Nếu chưa có CSDL thì tạo mảng giả lập để test giao diện
-$logs = [
-    [
-        'time' => '14:20:00',
-        'date' => date('d/m/Y'),
-        'initial' => 'AD',
-        'name' => 'Admin User',
-        'role' => 'Quản trị viên',
-        'action' => 'LOGIN',
-        'badge' => 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-        'desc' => 'Đăng nhập thành công vào hệ thống.',
-        'ip' => '192.168.1.100'
-    ],
-    [
-        'time' => '13:45:12',
-        'date' => date('d/m/Y'),
-        'initial' => 'GV',
-        'name' => 'Trần Thị Hoa',
-        'role' => 'Giảng viên',
-        'action' => 'CREATE',
-        'badge' => 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-        'desc' => 'Tạo đề thi mới: Toán Cao Cấp A1.',
-        'ip' => '192.168.1.105'
-    ],
-    [
-        'time' => '10:12:05',
-        'date' => date('d/m/Y'),
-        'initial' => 'AD',
-        'name' => 'Admin User',
-        'role' => 'Quản trị viên',
-        'action' => 'UPDATE',
-        'badge' => 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-        'desc' => 'Cập nhật cấu hình SMTP Email.',
-        'ip' => '192.168.1.100'
-    ],
-    [
-        'time' => '09:00:22',
-        'date' => date('d/m/Y'),
-        'initial' => 'SB',
-        'name' => 'System Bot',
-        'role' => 'Hệ thống',
-        'action' => 'DELETE',
-        'badge' => 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-        'desc' => 'Tự động dọn dẹp các báo cáo quá 30 ngày.',
-        'ip' => '127.0.0.1'
-    ],
-    [
-        'time' => '08:15:30',
-        'date' => date('d/m/Y', strtotime('-1 days')),
-        'initial' => 'GV',
-        'name' => 'Lê Minh C',
-        'role' => 'Giảng viên',
-        'action' => 'LOGIN',
-        'badge' => 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-        'desc' => 'Đăng nhập thành công vào hệ thống.',
-        'ip' => '113.185.12.4'
-    ],
-];
+$limit = 10; // số dòng mỗi trang
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 
-try {
-    $sql = "SELECT * FROM nhat_ky_he_thong WHERE 1=1";
-    $params = [];
+if ($page < 1) $page = 1;
 
-    if ($search != '') {
-        $sql .= " AND noi_dung LIKE ?";
-        $params[] = "%$search%";
-    }
+$offset = ($page - 1) * $limit;
 
-    if ($user != '') {
-        $sql .= " AND ten_nguoi_dung = ?";
-        $params[] = $user;
-    }
+/* =========================
+   BUILD QUERY
+========================= */
 
-    if ($date != '') {
-        $sql .= " AND DATE(thoi_gian) = ?";
-        $params[] = $date;
-    }
+$sql = "SELECT * FROM nhat_ky_he_thong WHERE 1";
+$params = [];
 
-    $sql .= " ORDER BY thoi_gian DESC LIMIT 100";
-    $stmt = $conn->prepare($sql);
-    $stmt->execute($params);
-    $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    if (count($data) > 0) {
-        $logs = []; // Xóa mảng giả lập nếu có data thật
-        foreach ($data as $row) {
-            $badge = "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300";
-            if ($row['hanh_dong'] == "LOGIN") {
-                $badge = "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
-            } elseif ($row['hanh_dong'] == "CREATE") {
-                $badge = "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
-            } elseif ($row['hanh_dong'] == "UPDATE") {
-                $badge = "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400";
-            } elseif ($row['hanh_dong'] == "DELETE") {
-                $badge = "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
-            }
-
-            $logs[] = [
-                'time' => date("H:i:s", strtotime($row['thoi_gian'])),
-                'date' => date("d/m/Y", strtotime($row['thoi_gian'])),
-                'initial' => strtoupper(substr($row['ten_nguoi_dung'], 0, 2)),
-                'name' => $row['ten_nguoi_dung'],
-                'role' => $row['vai_tro'],
-                'action' => $row['hanh_dong'],
-                'badge' => $badge,
-                'desc' => $row['noi_dung'],
-                'ip' => $row['ip_address']
-            ];
-        }
-    }
-} catch (Exception $e) {
-    // Nếu bảng chưa tồn tại thì dùng mảng giả lập
+if ($search) {
+    $sql .= " AND noi_dung LIKE ?";
+    $params[] = "%$search%";
 }
+
+if ($user) {
+    $sql .= " AND ten_nguoi_dung = ?";
+    $params[] = $user;
+}
+
+if ($date) {
+    $sql .= " AND DATE(thoi_gian) = ?";
+    $params[] = $date;
+}
+
+/* =========================
+   LẤY TỔNG BẢN GHI
+========================= */
+
+$countSql = "SELECT COUNT(*) FROM nhat_ky_he_thong WHERE 1";
+$countParams = [];
+
+if ($search) {
+    $countSql .= " AND noi_dung LIKE ?";
+    $countParams[] = "%$search%";
+}
+
+if ($user) {
+    $countSql .= " AND ten_nguoi_dung = ?";
+    $countParams[] = $user;
+}
+
+if ($date) {
+    $countSql .= " AND DATE(thoi_gian) = ?";
+    $countParams[] = $date;
+}
+
+$stmtCount = $conn->prepare($countSql);
+$stmtCount->execute($countParams);
+
+$totalRows = $stmtCount->fetchColumn();
+$totalPages = ceil($totalRows / $limit);
+
+/* =========================
+   QUERY LOG
+========================= */
+
+$sql .= " ORDER BY thoi_gian DESC LIMIT $limit OFFSET $offset";
+
+$stmt = $conn->prepare($sql);
+$stmt->execute($params);
+
+$logs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 /* =========================
    EXPORT EXCEL
 ========================= */
+
 if (isset($_GET['export'])) {
+
     header("Content-Type: application/vnd.ms-excel");
-    header("Content-Disposition: attachment; filename=logs.xls");
-    echo "Time\tUser\tRole\tAction\tDescription\tIP\n";
-    // ... code export thực tế
+    header("Content-Disposition: attachment; filename=nhatkyhethong.xls");
+
+    echo "Thoi gian\tUser\tRole\tAction\tNoi dung\tIP\n";
+
+    foreach ($logs as $row) {
+        echo $row['thoi_gian']."\t".
+             $row['ten_nguoi_dung']."\t".
+             $row['vai_tro']."\t".
+             $row['hanh_dong']."\t".
+             $row['noi_dung']."\t".
+             $row['ip_address']."\n";
+    }
+
     exit;
+}
+
+/* =========================
+   HÀM TẠO BADGE
+========================= */
+
+function getBadge($action){
+
+    switch($action){
+
+        case 'LOGIN':
+            return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
+
+        case 'CREATE':
+            return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
+
+        case 'UPDATE':
+            return "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400";
+
+        case 'DELETE':
+            return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
+
+        default:
+            return "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300";
+    }
 }
 
 include 'components/header.php';
@@ -243,10 +234,12 @@ include 'components/sidebar.php';
             <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
                 <h3 class="font-bold text-slate-800 dark:text-white">Chi tiết lịch sử thao tác</h3>
                 <div class="flex gap-2">
-                    <button
-                        onclick="showToast('info', 'Đang tải xuống', 'Hệ thống đang xuất file Excel. Vui lòng đợi...')"
-                        class="w-8 h-8 flex items-center justify-center border border-slate-200 dark:border-slate-600 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition"
-                        title="Xuất báo cáo"><span class="material-icons text-[20px]">download</span></button>
+                  <a href="?export=1"
+class="w-8 h-8 flex items-center justify-center border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700">
+
+<span class="material-icons text-[20px]">download</span>
+
+</a>
                     <button onclick="showToast('success', 'Đã làm mới', 'Dữ liệu nhật ký đã được cập nhật mới nhất.')"
                         class="w-8 h-8 flex items-center justify-center border border-slate-200 dark:border-slate-600 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition"
                         title="Tải lại dữ liệu"><span class="material-icons text-[20px]">refresh</span></button>
@@ -265,48 +258,140 @@ include 'components/sidebar.php';
                             <th class="px-6 py-4 text-right">Địa chỉ IP</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700" id="logsTableBody">
-                        <?php foreach ($logs as $log): ?>
-                            <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-700/50 transition log-row">
-                                <td class="px-6 py-4">
-                                    <div class="font-bold text-slate-800 dark:text-white"><?php echo $log['time']; ?></div>
-                                    <div class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
-                                        <?php echo $log['date']; ?></div>
-                                </td>
-                                <td class="px-6 py-4 flex items-center gap-3">
-                                    <div
-                                        class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-[#254ada] dark:text-[#4b6bfb] flex items-center justify-center font-bold text-[12px] shrink-0 border border-slate-200 dark:border-slate-600">
-                                        <?php echo $log['initial']; ?></div>
-                                    <div>
-                                        <div class="font-semibold text-slate-800 dark:text-white log-name">
-                                            <?php echo $log['name']; ?></div>
-                                        <div class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 log-role">
-                                            <?php echo $log['role']; ?></div>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4">
-                                    <span
-                                        class="px-2.5 py-1 <?php echo $log['badge']; ?> text-[10px] font-bold rounded uppercase inline-block border border-transparent dark:border-slate-600/50"><?php echo $log['action']; ?></span>
-                                </td>
-                                <td class="px-6 py-4 text-slate-600 dark:text-slate-300 log-desc">
-                                    <?php echo $log['desc']; ?></td>
-                                <td class="px-6 py-4 text-right text-slate-500 dark:text-slate-400 font-mono text-[12px]">
-                                    <?php echo $log['ip']; ?></td>
-                            </tr>
-                        <?php endforeach; ?>
-                    </tbody>
+                  <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+
+<?php foreach ($logs as $row): ?>
+
+<tr class="hover:bg-slate-50 dark:hover:bg-slate-700 transition">
+
+<td class="px-6 py-4">
+<div class="font-bold text-slate-800 dark:text-white">
+<?= date("H:i:s",strtotime($row['thoi_gian'])) ?>
+</div>
+<div class="text-[11px] text-slate-400">
+<?= date("d/m/Y",strtotime($row['thoi_gian'])) ?>
+</div>
+</td>
+
+<td class="px-6 py-4 flex items-center gap-3">
+
+<div class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center font-bold text-[12px]">
+
+<?= strtoupper(substr($row['ten_nguoi_dung'],0,2)) ?>
+
+</div>
+
+<div>
+
+<div class="font-semibold text-slate-800 dark:text-white">
+<?= $row['ten_nguoi_dung'] ?>
+</div>
+
+<div class="text-[11px] text-slate-400">
+<?= $row['vai_tro'] ?>
+</div>
+
+</div>
+
+</td>
+
+<td class="px-6 py-4">
+
+<span class="px-2 py-1 rounded text-[10px] font-bold <?= getBadge($row['hanh_dong']) ?>">
+
+<?= $row['hanh_dong'] ?>
+
+</span>
+
+</td>
+
+<td class="px-6 py-4 text-slate-600 dark:text-slate-300">
+
+<?= $row['noi_dung'] ?>
+
+</td>
+
+<td class="px-6 py-4 text-right font-mono text-[12px] text-slate-500">
+
+<?= $row['ip_address'] ?>
+
+</td>
+
+</tr>
+
+<?php endforeach; ?>
+
+</tbody>
                 </table>
             </div>
 
             <div
-                class="p-4 border-t border-slate-100 dark:border-slate-700 flex flex-col md:flex-row items-center justify-between text-sm text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 rounded-b-xl transition-colors">
-                <p id="paginationInfo">Hiển thị <span class="font-medium text-slate-800 dark:text-white">0</span> -
-                    <span class="font-medium text-slate-800 dark:text-white">0</span> của <span
-                        class="font-medium text-slate-800 dark:text-white">0</span> bản ghi</p>
-                <div id="paginationControls" class="flex items-center gap-1.5 mt-3 md:mt-0">
-                </div>
-            </div>
-        </div>
+class="p-4 border-t border-slate-100 dark:border-slate-700 flex flex-col md:flex-row items-center justify-between text-sm text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 rounded-b-xl transition-colors">
+
+<p>
+
+Hiển thị
+
+<span class="font-medium text-slate-800 dark:text-white">
+<?= $offset + 1 ?>
+</span>
+
+-
+
+<span class="font-medium text-slate-800 dark:text-white">
+<?= min($offset + $limit, $totalRows) ?>
+</span>
+
+của
+
+<span class="font-medium text-slate-800 dark:text-white">
+<?= $totalRows ?>
+</span>
+
+bản ghi
+
+</p>
+
+<div class="flex items-center gap-2 mt-3 md:mt-0">
+
+<?php if($page > 1): ?>
+
+<a href="?page=<?= $page-1 ?>"
+class="px-3 py-1 border rounded text-sm hover:bg-slate-100 dark:hover:bg-slate-700">
+
+‹
+
+</a>
+
+<?php endif; ?>
+
+<?php for($i=1;$i<=$totalPages;$i++): ?>
+
+<a href="?page=<?= $i ?>"
+
+class="px-3 py-1 rounded text-sm
+<?= $i==$page ? 'bg-[#254ada] text-white' : 'border hover:bg-slate-100 dark:hover:bg-slate-700' ?>">
+
+<?= $i ?>
+
+</a>
+
+<?php endfor; ?>
+
+<?php if($page < $totalPages): ?>
+
+<a href="?page=<?= $page+1 ?>"
+class="px-3 py-1 border rounded text-sm hover:bg-slate-100 dark:hover:bg-slate-700">
+
+›
+
+</a>
+
+<?php endif; ?>
+
+</div>
+
+</div>
 
     </div>
 </main>

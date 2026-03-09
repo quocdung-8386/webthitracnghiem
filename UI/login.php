@@ -3,7 +3,7 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-require_once __DIR__ . '/../app/config/database.php';
+require_once __DIR__ . '/../app/config/Database.php';
 
 // Kiểm tra nếu đã đăng nhập thì đá về đúng trang
 if (isset($_SESSION['vai_tro'])) {
@@ -50,7 +50,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             elseif ($password !== $user['mat_khau']) {
                 $error_message = "Sai mật khẩu!";
             }
-            elseif ($user['trang_thai'] !== 'hoat_dong') {
+            elseif ($user['trang_thai'] !=='hoat_dong') {
                 $error_message = "Tài khoản đã bị khóa hoặc ngừng hoạt động!";
             }
             else {

@@ -4,7 +4,7 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-require_once __DIR__ . '/../app/config/database.php';
+require_once __DIR__ . '/../app/config/Database.php';
 
 $errors = [];
 $success_message = "";
