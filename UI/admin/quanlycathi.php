@@ -1,81 +1,173 @@
 <?php
 // 1. Cấu hình thông tin trang
 $title = "Quản lý Ca thi - Hệ Thống Thi Trực Tuyến";
-$active_menu = "shift_exam"; // Làm sáng menu "Quản lý ca thi" trong Sidebar
+$active_menu = "shift_exam";
 
-// Dữ liệu mô phỏng cho Bảng Ca thi (Đã bổ sung class Dark Mode vào badge/avatar)
-$shifts = [
-    [
-        'name' => 'Ca sáng - Đợt 1',
-        'id' => 'SH-001',
-        'time' => '07:30 - 09:30',
-        'date' => '20/12/2023',
+require_once __DIR__ . '/../../app/config/Database.php';
+$conn = Database::getConnection();
+
+date_default_timezone_set('Asia/Ho_Chi_Minh');
+$now = date('Y-m-d H:i:s');
+
+$shifts = [];
+
+// Lấy tham số tìm kiếm và phân trang
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$search = isset($_GET['search']) ? trim($_GET['search']) : '';
+$limit = 10;
+$offset = ($page - 1) * $limit;
+
+/* ================================
+        ĐẾM TỔNG SỐ CA THI
+================================ */
+
+$countSql = "
+SELECT COUNT(*) as total
+FROM ca_thi ct
+LEFT JOIN de_thi dt ON ct.ma_de_thi = dt.ma_de_thi
+WHERE 1=1
+";
+
+$params = [];
+$types = "";
+
+if (!empty($search)) {
+    $countSql .= " AND (dt.tieu_de LIKE ? OR ct.ma_phong LIKE ? OR ct.ma_ca_thi LIKE ?)";
+    $searchParam = "%$search%";
+    $params = [$searchParam, $searchParam, $searchParam];
+    $types = "sss";
+}
+
+$countStmt = $conn->prepare($countSql);
+$countStmt->execute($params);
+
+$totalRow = $countStmt->fetch(PDO::FETCH_ASSOC);
+$total = $totalRow['total'];
+$totalPages = ceil($total / $limit);
+
+/* ================================
+        LẤY DANH SÁCH CA THI
+================================ */
+
+$sql = "
+SELECT 
+    ct.ma_ca_thi,
+    ct.ma_de_thi,
+    ct.thoi_gian_bat_dau,
+    ct.thoi_gian_ket_thuc,
+    ct.ma_phong,
+    dt.tieu_de,
+    (
+        SELECT COUNT(*) 
+        FROM dang_ky_thi dkt 
+        WHERE dkt.ma_ca_thi = ct.ma_ca_thi
+    ) as so_luong_dang_ky
+FROM ca_thi ct
+LEFT JOIN de_thi dt ON ct.ma_de_thi = dt.ma_de_thi
+WHERE 1=1
+";
+
+$params = [];
+$types = "";
+
+if (!empty($search)) {
+    $sql .= " AND (dt.tieu_de LIKE ? OR ct.ma_phong LIKE ? OR ct.ma_ca_thi LIKE ?)";
+    $searchParam = "%$search%";
+    $params = [$searchParam, $searchParam, $searchParam];
+    $types = "sss";
+}
+
+$sql .= " ORDER BY ct.thoi_gian_bat_dau DESC LIMIT $limit OFFSET $offset";
+
+$stmt = $conn->prepare($sql);
+$stmt->execute($params);
+
+$result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+foreach ($result as $row) {
+
+    $start = date('H:i', strtotime($row['thoi_gian_bat_dau']));
+    $end = date('H:i', strtotime($row['thoi_gian_ket_thuc']));
+    $date = date('d/m/Y', strtotime($row['thoi_gian_bat_dau']));
+
+    if ($now < $row['thoi_gian_bat_dau']) {
+
+        $status = 'SẮP TỚI';
+        $status_bg = 'bg-blue-50 dark:bg-blue-900/30';
+        $status_text = 'text-blue-600 dark:text-blue-400';
+        $is_ended = false;
+
+    } elseif ($now >= $row['thoi_gian_bat_dau'] && $now <= $row['thoi_gian_ket_thuc']) {
+
+        $status = 'ĐANG THI';
+        $status_bg = 'bg-green-100 dark:bg-green-900/30';
+        $status_text = 'text-green-700 dark:text-green-400';
+        $is_ended = false;
+
+    } else {
+
+        $status = 'ĐÃ KẾT THÚC';
+        $status_bg = 'bg-slate-100 dark:bg-slate-700';
+        $status_text = 'text-slate-600 dark:text-slate-400';
+        $is_ended = true;
+
+    }
+
+    $shifts[] = [
+        'name' => htmlspecialchars($row['tieu_de'] ?: 'Ca thi'),
+        'id' => 'SH-' . str_pad($row['ma_ca_thi'], 3, '0', STR_PAD_LEFT),
+        'ma_ca_thi' => $row['ma_ca_thi'],
+        'ma_de_thi' => $row['ma_de_thi'],
+        'time' => $start . ' - ' . $end,
+        'date' => $date,
+        'thoi_gian_bat_dau' => $row['thoi_gian_bat_dau'],
+        'thoi_gian_ket_thuc' => $row['thoi_gian_ket_thuc'],
         'location_icon' => 'business',
-        'location' => 'Phòng Lab 402',
-        'students_assigned' => 50,
-        'students_total' => 50,
-        'avatars' => ['SV', 'SV', '+48'],
-        'avatar_bg' => 'bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-300',
-        'status' => 'ĐANG THI',
-        'status_bg' => 'bg-green-100 dark:bg-green-900/30',
-        'status_text' => 'text-green-700 dark:text-green-400',
-        'is_ended' => false
-    ],
-    [
-        'name' => 'Ca sáng - Đợt 2',
-        'id' => 'SH-002',
-        'time' => '10:00 - 12:00',
-        'date' => '20/12/2023',
-        'location_icon' => 'business',
-        'location' => 'Phòng Lab 402',
-        'students_assigned' => 0,
-        'students_total' => 50,
-        'avatars' => ['?'],
-        'avatar_bg' => 'bg-slate-100 text-slate-400 dark:bg-slate-700 dark:text-slate-300',
-        'status' => 'SẮP TỚI',
-        'status_bg' => 'bg-blue-50 dark:bg-blue-900/30',
-        'status_text' => 'text-blue-600 dark:text-blue-400',
-        'is_ended' => false
-    ],
-    [
-        'name' => 'Ca chiều (Online)',
-        'id' => 'SH-003',
-        'time' => '13:30 - 15:30',
-        'date' => '20/12/2023',
-        'location_icon' => 'link',
-        'location' => 'exam.edu.vn/online/...',
-        'students_assigned' => 200,
-        'students_total' => 200,
-        'avatars' => ['SV', '+199'],
-        'avatar_bg' => 'bg-orange-100 text-orange-600 dark:bg-orange-900/50 dark:text-orange-300',
-        'status' => 'SẮP TỚI',
-        'status_bg' => 'bg-blue-50 dark:bg-blue-900/30',
-        'status_text' => 'text-blue-600 dark:text-blue-400',
-        'is_ended' => false
-    ],
-    [
-        'name' => 'Ca tối (Dự phòng)',
-        'id' => 'SH-004',
-        'time' => '18:00 - 20:00',
-        'date' => '19/12/2023',
-        'location_icon' => 'business',
-        'location' => 'Phòng B.301',
-        'students_assigned' => 120,
-        'students_total' => 120,
+        'location' => htmlspecialchars($row['ma_phong']),
+        'students_assigned' => (int)$row['so_luong_dang_ky'],
+        'students_total' => 0,
         'avatars' => [],
-        'avatar_bg' => '',
-        'status' => 'ĐÃ KẾT THÚC',
-        'status_bg' => 'bg-slate-100 dark:bg-slate-700',
-        'status_text' => 'text-slate-600 dark:text-slate-400',
-        'is_ended' => true
-    ],
-];
+        'avatar_bg' => 'bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-300',
+        'status' => $status,
+        'status_bg' => $status_bg,
+        'status_text' => $status_text,
+        'is_ended' => $is_ended
+    ];
+}
 
-// Nhúng Header và Sidebar
+/* ================================
+        LẤY DANH SÁCH ĐỀ THI
+================================ */
+
+$examSql = "SELECT ma_de_thi, tieu_de FROM de_thi ORDER BY ma_de_thi DESC";
+$examResult = $conn->query($examSql);
+
+$exams = [];
+
+while ($row = $examResult->fetch(PDO::FETCH_ASSOC)) {
+
+    $exams[] = [
+        'ma_de_thi' => $row['ma_de_thi'],
+        'tieu_de' => htmlspecialchars($row['tieu_de'], ENT_QUOTES, 'UTF-8')
+    ];
+
+}
+
+/* ================================
+            THỐNG KÊ
+================================ */
+
+$totalShifts = $total;
+$totalAssigned = 0;
+$totalUnassigned = 25;
+
+/* ================================
+        HEADER + SIDEBAR
+================================ */
+
 include 'components/header.php';
 include 'components/sidebar.php';
 ?>
-
 <main
     class="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 dark:bg-slate-900 transition-colors duration-200">
     <header
@@ -88,8 +180,11 @@ include 'components/sidebar.php';
             <div class="relative">
                 <span
                     class="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">search</span>
-                <input type="text" id="searchInput" placeholder="Tìm kiếm ca thi..."
-                    class="pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-full text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#254ada] w-64 transition">
+                <form method="GET" action="" class="inline">
+                    <input type="text" id="searchInput" name="search" placeholder="Tìm kiếm ca thi..."
+                        value="<?php echo htmlspecialchars($search); ?>"
+                        class="pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-full text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#254ada] w-64 transition">
+                </form>
             </div>
 
             <div class="relative">
@@ -166,7 +261,7 @@ include 'components/sidebar.php';
                 <div>
                     <p class="text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-0.5">
                         Tổng số ca thi</p>
-                    <p class="text-3xl font-black text-slate-800 dark:text-white">08</p>
+                    <p class="text-3xl font-black text-slate-800 dark:text-white"><?php echo $totalShifts; ?></p>
                 </div>
             </div>
 
@@ -179,8 +274,8 @@ include 'components/sidebar.php';
                 <div>
                     <p class="text-[11px] font-bold text-green-600 dark:text-green-400 uppercase tracking-wide mb-0.5">
                         Thí sinh đã gán</p>
-                    <p class="text-3xl font-black text-slate-800 dark:text-white">1,215 <span
-                            class="text-lg text-slate-400 dark:text-slate-500 font-semibold">/ 1,240</span></p>
+                    <p class="text-3xl font-black text-slate-800 dark:text-white"><?php echo number_format($totalAssigned); ?> <span
+                            class="text-lg text-slate-400 dark:text-slate-500 font-semibold">/ <?php echo number_format($totalAssigned + $totalUnassigned); ?></span></p>
                 </div>
             </div>
 
@@ -194,7 +289,7 @@ include 'components/sidebar.php';
                     <p
                         class="text-[11px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wide mb-0.5">
                         Thí sinh chưa gán</p>
-                    <p class="text-3xl font-black text-slate-800 dark:text-white">25</p>
+                    <p class="text-3xl font-black text-slate-800 dark:text-white"><?php echo $totalUnassigned; ?></p>
                 </div>
             </div>
         </div>
@@ -220,7 +315,7 @@ include 'components/sidebar.php';
                     </thead>
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-700" id="shiftsTableBody">
                         <?php foreach ($shifts as $shift): ?>
-                            <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-700/50 transition shift-row">
+                            <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-700/50 transition shift-row" data-ma-ca-thi="<?php echo $shift['ma_ca_thi']; ?>">
                                 <td class="px-6 py-4 text-center">
                                     <input type="checkbox"
                                         class="row-checkbox w-4 h-4 text-[#254ada] rounded border-slate-300 dark:border-slate-600 dark:bg-slate-700 focus:ring-[#254ada] cursor-pointer">
@@ -267,28 +362,30 @@ include 'components/sidebar.php';
                                 </td>
                                 <td class="px-6 py-4 text-center">
                                     <span
-                                        class="px-2.5 py-1 text-[10px] font-bold rounded-full <?php echo $shift['status_bg']; ?> <?php echo $shift['status_text']; ?> uppercase inline-block leading-tight text-center">
+                                        class="px-2.5 py-1 text-[10px] font-bold rounded-full <?php echo $shift['status_bg']; ?> <?php echo $shift['status_text']; ?> uppercase inline-block leading-tight text-center shift-status"
+                                        data-start="<?php echo $shift['thoi_gian_bat_dau']; ?>"
+                                        data-end="<?php echo $shift['thoi_gian_ket_thuc']; ?>">
                                         <?php echo str_replace(' ', '<br>', $shift['status']); ?>
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 text-right space-x-1 text-slate-400 dark:text-slate-500">
                                     <?php if (!$shift['is_ended']): ?>
                                         <button
-                                            onclick="showToast('info', 'Thêm thí sinh', 'Mở bảng thêm thí sinh cho <?php echo $shift['name']; ?>')"
+                                            onclick="showToast('info', 'Thêm thí sinh', 'Mở bảng thêm thí sinh cho <?php echo htmlspecialchars($shift['name']); ?>')"
                                             class="hover:text-[#1e3bb3] dark:hover:text-[#4b6bfb] p-1.5 transition rounded-md hover:bg-blue-50 dark:hover:bg-slate-700"
                                             title="Thêm thí sinh"><span
                                                 class="material-icons text-[18px]">person_add</span></button>
                                     <?php else: ?>
                                         <button
-                                            onclick="showToast('success', 'Thống kê điểm', 'Mở báo cáo điểm cho <?php echo $shift['name']; ?>')"
+                                            onclick="showToast('success', 'Thống kê điểm', 'Mở báo cáo điểm cho <?php echo htmlspecialchars($shift['name']); ?>')"
                                             class="hover:text-[#1e3bb3] dark:hover:text-[#4b6bfb] p-1.5 transition rounded-md hover:bg-blue-50 dark:hover:bg-slate-700"
                                             title="Xem thống kê điểm"><span
                                                 class="material-icons text-[18px]">insert_chart_outlined</span></button>
                                     <?php endif; ?>
-                                    <button onclick="showToast('info', 'Chỉnh sửa', 'Chỉnh sửa thông tin ca thi')"
+                                    <button onclick="openEditModal(<?php echo $shift['ma_ca_thi']; ?>, '<?php echo htmlspecialchars($shift['name']); ?>', <?php echo $shift['ma_de_thi']; ?>, '<?php echo $shift['date']; ?>', '<?php echo substr($shift['thoi_gian_bat_dau'], 11, 5); ?>', '<?php echo substr($shift['thoi_gian_ket_thuc'], 11, 5); ?>', '<?php echo htmlspecialchars($shift['location']); ?>')"
                                         class="hover:text-slate-700 dark:hover:text-white p-1.5 transition rounded-md hover:bg-slate-100 dark:hover:bg-slate-700"
                                         title="Chỉnh sửa"><span class="material-icons text-[18px]">edit</span></button>
-                                    <button onclick="showToast('error', 'Xóa ca thi', 'Đã xóa ca thi khỏi hệ thống')"
+                                    <button onclick="deleteShift(<?php echo $shift['ma_ca_thi']; ?>, '<?php echo htmlspecialchars($shift['name']); ?>')"
                                         class="hover:text-red-500 dark:hover:text-red-400 p-1.5 transition rounded-md hover:bg-red-50 dark:hover:bg-slate-700"
                                         title="Xóa"><span class="material-icons text-[18px]">delete</span></button>
                                 </td>
@@ -300,8 +397,32 @@ include 'components/sidebar.php';
 
             <div
                 class="p-4 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between text-sm text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 rounded-b-xl transition-colors">
-                <p id="paginationInfo">Hiển thị 1-4 trên tổng số 8 ca thi</p>
+                <p id="paginationInfo">Hiển thị <?php echo ($offset + 1); ?>-<?php echo min($offset + $limit, $total); ?> trên tổng số <?php echo $total; ?> ca thi</p>
                 <div id="paginationControls" class="flex items-center gap-2">
+                    <?php if ($page > 1): ?>
+                        <a href="?page=<?php echo $page - 1; ?><?php echo !empty($search) ? '&search=' . urlencode($search) : ''; ?>"
+                            class="px-3 py-1.5 border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 rounded-md hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 transition font-medium">Trước</a>
+                    <?php else: ?>
+                        <span class="px-3 py-1.5 border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 rounded-md opacity-50 cursor-not-allowed text-slate-300 dark:text-slate-500 font-medium">Trước</span>
+                    <?php endif; ?>
+                    
+                    <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+                        <?php if ($i == $page): ?>
+                            <span class="w-8 h-8 flex items-center justify-center bg-[#254ada] text-white rounded-md font-medium shadow-sm"><?php echo $i; ?></span>
+                        <?php elseif ($i == 1 || $i == $totalPages || ($i >= $page - 1 && $i <= $page + 1)): ?>
+                            <a href="?page=<?php echo $i; ?><?php echo !empty($search) ? '&search=' . urlencode($search) : ''; ?>"
+                                class="w-8 h-8 flex items-center justify-center bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 rounded-md text-slate-600 dark:text-slate-300 transition"><?php echo $i; ?></a>
+                        <?php elseif ($i == $page - 2 || $i == $page + 2): ?>
+                            <span class="text-slate-400">...</span>
+                        <?php endif; ?>
+                    <?php endfor; ?>
+                    
+                    <?php if ($page < $totalPages): ?>
+                        <a href="?page=<?php echo $page + 1; ?><?php echo !empty($search) ? '&search=' . urlencode($search) : ''; ?>"
+                            class="px-3 py-1.5 border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 rounded-md hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 transition font-medium">Sau</a>
+                    <?php else: ?>
+                        <span class="px-3 py-1.5 border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 rounded-md opacity-50 cursor-not-allowed text-slate-300 dark:text-slate-500 font-medium">Sau</span>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -357,30 +478,42 @@ include 'components/sidebar.php';
         </div>
         <form onsubmit="event.preventDefault(); submitAddShift();" class="flex-1 overflow-y-auto custom-scrollbar p-5">
             <div class="mb-4">
-                <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Tên ca thi
+                <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Đề thi
                     <span class="text-red-500">*</span></label>
-                <input type="text" placeholder="VD: Ca sáng - Đợt 3" required
+                <select id="add_ma_de_thi" required
                     class="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg px-3.5 py-2.5 text-sm focus:ring-[#254ada] focus:outline-none">
+                    <option value="">-- Chọn đề thi --</option>
+                    <?php foreach ($exams as $exam): ?>
+                        <option value="<?php echo $exam['ma_de_thi']; ?>"><?php echo $exam['tieu_de']; ?></option>
+                    <?php endforeach; ?>
+                </select>
             </div>
             <div class="grid grid-cols-2 gap-4 mb-4">
                 <div>
                     <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Ngày thi
                         <span class="text-red-500">*</span></label>
-                    <input type="date" required
+                    <input type="date" id="add_date" required
                         class="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg px-3.5 py-2.5 text-sm focus:ring-[#254ada] focus:outline-none">
                 </div>
                 <div>
                     <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Giờ bắt đầu
                         <span class="text-red-500">*</span></label>
-                    <input type="time" required
+                    <input type="time" id="add_start_time" required
                         class="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg px-3.5 py-2.5 text-sm focus:ring-[#254ada] focus:outline-none">
                 </div>
             </div>
-            <div class="mb-5">
-                <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Địa điểm /
-                    Phòng máy <span class="text-red-500">*</span></label>
-                <input type="text" placeholder="VD: Phòng Lab 405" required
-                    class="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg px-3.5 py-2.5 text-sm focus:ring-[#254ada] focus:outline-none">
+            <div class="grid grid-cols-2 gap-4 mb-5">
+                <div>
+                    <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Giờ kết thúc
+                        <span class="text-red-500">*</span></label>
+                    <input type="time" id="add_end_time" required
+                        class="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg px-3.5 py-2.5 text-sm focus:ring-[#254ada] focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Địa điểm / Phòng máy <span class="text-red-500">*</span></label>
+                    <input type="text" id="add_ma_phong" placeholder="VD: Phòng Lab 405" required
+                        class="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg px-3.5 py-2.5 text-sm focus:ring-[#254ada] focus:outline-none">
+                </div>
             </div>
 
             <div class="flex justify-end gap-3 pt-5 mt-4 border-t border-slate-100 dark:border-slate-700">
@@ -394,6 +527,74 @@ include 'components/sidebar.php';
         </form>
     </div>
 </div>
+
+<!-- Edit Shift Modal -->
+<div id="editShiftModal"
+    class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity">
+    <div
+        class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-[500px] overflow-hidden transform transition-all border border-slate-200 dark:border-slate-700 flex flex-col max-h-[90vh]">
+        <div class="flex justify-between items-center p-5 border-b border-slate-100 dark:border-slate-700 shrink-0">
+            <h3 class="font-bold text-lg text-slate-800 dark:text-white flex items-center gap-2">
+                <span class="material-icons text-[#254ada] dark:text-[#4b6bfb]">edit</span> Chỉnh sửa ca thi
+            </h3>
+            <button type="button" onclick="closeModal('editShiftModal')"
+                class="text-slate-400 hover:text-red-500 transition focus:outline-none"><span
+                    class="material-icons">close</span></button>
+        </div>
+        <form onsubmit="event.preventDefault(); submitEditShift();" class="flex-1 overflow-y-auto custom-scrollbar p-5">
+            <input type="hidden" id="edit_ma_ca_thi" value="">
+            
+            <div class="mb-4">
+                <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Đề thi
+                    <span class="text-red-500">*</span></label>
+                <select id="edit_ma_de_thi" required
+                    class="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg px-3.5 py-2.5 text-sm focus:ring-[#254ada] focus:outline-none">
+                    <option value="">-- Chọn đề thi --</option>
+                    <?php foreach ($exams as $exam): ?>
+                        <option value="<?php echo $exam['ma_de_thi']; ?>"><?php echo $exam['tieu_de']; ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Ngày thi
+                        <span class="text-red-500">*</span></label>
+                    <input type="date" id="edit_date" required
+                        class="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg px-3.5 py-2.5 text-sm focus:ring-[#254ada] focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Giờ bắt đầu
+                        <span class="text-red-500">*</span></label>
+                    <input type="time" id="edit_start_time" required
+                        class="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg px-3.5 py-2.5 text-sm focus:ring-[#254ada] focus:outline-none">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4 mb-5">
+                <div>
+                    <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Giờ kết thúc
+                        <span class="text-red-500">*</span></label>
+                    <input type="time" id="edit_end_time" required
+                        class="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg px-3.5 py-2.5 text-sm focus:ring-[#254ada] focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Địa điểm / Phòng máy <span class="text-red-500">*</span></label>
+                    <input type="text" id="edit_ma_phong" placeholder="VD: Phòng Lab 405" required
+                        class="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg px-3.5 py-2.5 text-sm focus:ring-[#254ada] focus:outline-none">
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-5 mt-4 border-t border-slate-100 dark:border-slate-700">
+                <button type="button" onclick="closeModal('editShiftModal')"
+                    class="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition">Hủy
+                    bỏ</button>
+                <button type="submit" id="btnEditShift"
+                    class="px-4 py-2 bg-[#254ada] hover:bg-[#1e3bb3] dark:bg-[#4b6bfb] dark:hover:bg-[#254ada] text-white rounded-lg text-sm font-medium transition flex items-center gap-2">Lưu
+                    thay đổi</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div id="assignStudentsModal"
     class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity">
     <div
@@ -499,276 +700,202 @@ include 'components/sidebar.php';
                     </div>
                     <span class="text-[12px] font-bold text-green-600 dark:text-green-400">Trống (0/50)</span>
                 </label>
-
-                <label
-                    class="flex items-center justify-between p-3 border border-slate-200 dark:border-slate-600 hover:border-[#254ada] rounded-lg cursor-pointer transition">
-                    <div class="flex items-center gap-3">
-                        <input type="checkbox" checked
-                            class="w-4 h-4 text-[#254ada] rounded border-slate-300 focus:ring-[#254ada] dark:border-slate-600 dark:bg-slate-700">
-                        <div>
-                            <p class="text-sm font-bold text-slate-800 dark:text-white">Ca chiều (Online)</p>
-                            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">13:30 - 15:30 | Mạng trực
-                                tuyến</p>
-                        </div>
-                    </div>
-                    <span class="text-[12px] font-bold text-green-600 dark:text-green-400">Trống (200/250)</span>
-                </label>
-            </div>
-
-            <div class="flex justify-end gap-3 pt-5 border-t border-slate-100 dark:border-slate-700">
-                <button type="button" onclick="closeModal('assignStudentsModal')"
-                    class="px-5 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition">Hủy
-                    bỏ</button>
-                <button type="submit" id="btnSubmitAssign"
-                    class="px-6 py-2.5 bg-[#254ada] hover:bg-[#1e3bb3] dark:bg-[#4b6bfb] dark:hover:bg-[#254ada] text-white rounded-lg text-sm font-medium transition flex items-center gap-2 shadow-md">
-                    <span class="material-icons text-[18px]">bolt</span> Tiến hành phân bổ
-                </button>
             </div>
         </form>
     </div>
 </div>
 
-<div id="toastContainer" class="fixed top-5 right-5 z-[100] flex flex-col gap-3 pointer-events-none"></div>
-<template id="toastTemplate">
-    <div
-        class="toast-item pointer-events-auto flex items-start gap-3 p-4 bg-white dark:bg-slate-800 border-l-4 rounded-lg shadow-lg transform transition-all duration-300 translate-x-full opacity-0 max-w-sm border-slate-200 dark:border-slate-700">
-        <div class="toast-icon shrink-0 mt-0.5"></div>
-        <div class="flex-1">
-            <h4 class="toast-title text-[14px] font-bold text-slate-800 dark:text-white leading-tight"></h4>
-            <p class="toast-message text-[12px] text-slate-500 dark:text-slate-400 mt-1"></p>
-        </div>
-        <button class="toast-close text-slate-400 hover:text-slate-600 transition"><span
-                class="material-icons text-[16px]">close</span></button>
-    </div>
-</template>
-
 <?php include 'components/footer.php'; ?>
 
 <script>
-    /* =================================================================
-       HÀM HIỂN THỊ THÔNG BÁO (TOAST) & MODAL
-       ================================================================= */
-    function showToast(type, title, message) {
-        const container = document.getElementById('toastContainer');
-        const template = document.getElementById('toastTemplate');
-        if (!container || !template) return;
+// ================================
+// AJAX Functions for Shift Management
+// ================================
 
-        const toastNode = template.content.cloneNode(true);
-        const toastEl = toastNode.querySelector('.toast-item');
-        const iconEl = toastNode.querySelector('.toast-icon');
-
-        toastNode.querySelector('.toast-title').textContent = title;
-        toastNode.querySelector('.toast-message').textContent = message;
-
-        if (type === 'success') {
-            toastEl.classList.add('border-green-500');
-            iconEl.innerHTML = '<span class="material-icons text-green-500">check_circle</span>';
-        } else if (type === 'error') {
-            toastEl.classList.add('border-red-500');
-            iconEl.innerHTML = '<span class="material-icons text-red-500">error</span>';
-        } else if (type === 'warning') {
-            toastEl.classList.add('border-orange-500');
-            iconEl.innerHTML = '<span class="material-icons text-orange-500">warning</span>';
-        } else {
-            toastEl.classList.add('border-blue-500');
-            iconEl.innerHTML = '<span class="material-icons text-blue-500">info</span>';
-        }
-
-        toastNode.querySelector('.toast-close').onclick = () => {
-            toastEl.classList.add('translate-x-full', 'opacity-0');
-            setTimeout(() => toastEl.remove(), 300);
-        };
-
-        container.appendChild(toastNode);
-        setTimeout(() => toastEl.classList.remove('translate-x-full', 'opacity-0'), 10);
-        setTimeout(() => { if (container.contains(toastEl)) toastEl.querySelector('.toast-close').click(); }, 4000);
+// Submit Add Shift
+function submitAddShift() {
+    const ma_de_thi = document.getElementById('add_ma_de_thi').value;
+    const date = document.getElementById('add_date').value;
+    const start_time = document.getElementById('add_start_time').value;
+    const end_time = document.getElementById('add_end_time').value;
+    const ma_phong = document.getElementById('add_ma_phong').value;
+    
+    if (!ma_de_thi || !date || !start_time || !end_time || !ma_phong) {
+        showToast('error', 'Lỗi', 'Vui lòng điền đầy đủ thông tin');
+        return;
     }
-
-    function openModal(id) {
-        const modal = document.getElementById(id);
-        if (modal) modal.classList.remove('hidden');
-    }
-
-    function closeModal(id) {
-        const modal = document.getElementById(id);
-        if (modal) modal.classList.add('hidden');
-    }
-
-    function submitAddShift() {
-        const btn = document.getElementById('btnSubmitShift');
-        const originalText = btn.innerHTML;
-
-        btn.innerHTML = '<span class="material-icons animate-spin text-[18px]">autorenew</span> Đang lưu...';
-        btn.disabled = true;
-        btn.classList.add('opacity-70');
-
-        setTimeout(() => {
+    
+    const btn = document.getElementById('btnSubmitShift');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-icons animate-spin">sync</span> Đang xử lý...';
+    
+    const formData = new FormData();
+    formData.append('ma_de_thi', ma_de_thi);
+    formData.append('date', date);
+    formData.append('start_time', start_time);
+    formData.append('end_time', end_time);
+    formData.append('ma_phong', ma_phong);
+    
+    fetch('api/add_shift.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('success', 'Thành công', 'Thêm ca thi thành công');
             closeModal('addShiftModal');
-            showToast('success', 'Thêm thành công', 'Ca thi mới đã được tạo.');
-
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-            btn.classList.remove('opacity-70');
-        }, 1000);
-    }
-
-    /* =================================================================
-       SỰ KIỆN KHỞI TẠO (DOM Content Loaded)
-       ================================================================= */
-    document.addEventListener('DOMContentLoaded', function () {
-
-        // 1. Chức năng Dark Mode
-        const darkModeToggle = document.getElementById('darkModeToggle');
-        const darkModeIcon = document.getElementById('darkModeIcon');
-        const htmlElement = document.documentElement;
-
-        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            htmlElement.classList.add('dark');
-            if (darkModeIcon) darkModeIcon.textContent = 'light_mode';
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showToast('error', 'Lỗi', data.message || 'Có lỗi xảy ra');
         }
-
-        darkModeToggle?.addEventListener('click', () => {
-            htmlElement.classList.toggle('dark');
-            const isDark = htmlElement.classList.contains('dark');
-            localStorage.setItem('theme', isDark ? 'dark' : 'light');
-            if (darkModeIcon) darkModeIcon.textContent = isDark ? 'light_mode' : 'dark_mode';
-        });
-
-        // 2. Chức năng Dropdown Thông báo
-        const notifButton = document.getElementById('notifButton');
-        const notifDropdown = document.getElementById('notifDropdown');
-
-        if (notifButton && notifDropdown) {
-            notifButton.addEventListener('click', function (e) {
-                e.stopPropagation();
-                notifDropdown.classList.toggle('hidden');
-            });
-
-            document.addEventListener('click', function (e) {
-                if (!notifButton.contains(e.target) && !notifDropdown.contains(e.target)) {
-                    notifDropdown.classList.add('hidden');
-                }
-            });
-        }
-
-        // 3. Chức năng Checkbox All
-        const selectAllBtn = document.getElementById('selectAllBtn');
-        const rowCheckboxes = document.querySelectorAll('.row-checkbox');
-
-        selectAllBtn?.addEventListener('change', function () {
-            rowCheckboxes.forEach(cb => cb.checked = this.checked);
-        });
-
-        rowCheckboxes.forEach(cb => {
-            cb.addEventListener('change', () => {
-                const allChecked = Array.from(rowCheckboxes).every(c => c.checked);
-                const someChecked = Array.from(rowCheckboxes).some(c => c.checked);
-                if (selectAllBtn) {
-                    selectAllBtn.checked = allChecked;
-                    selectAllBtn.indeterminate = someChecked && !allChecked;
-                }
-            });
-        });
-
-        // 4. Chức năng Tìm kiếm & Phân trang
-        const rowsPerPage = 3;
-        let currentPage = 1;
-        let filteredRows = [];
-
-        const allRows = Array.from(document.querySelectorAll('.shift-row'));
-        const paginationInfo = document.getElementById('paginationInfo');
-        const paginationControls = document.getElementById('paginationControls');
-        const searchInput = document.getElementById('searchInput');
-
-        function updatePagination() {
-            const totalRows = filteredRows.length;
-            const totalPages = Math.ceil(totalRows / rowsPerPage) || 1;
-
-            if (currentPage > totalPages) currentPage = totalPages;
-            if (currentPage < 1) currentPage = 1;
-
-            const start = (currentPage - 1) * rowsPerPage;
-            const end = start + rowsPerPage;
-
-            allRows.forEach(row => row.style.display = 'none');
-            filteredRows.slice(start, end).forEach(row => row.style.display = '');
-
-            const displayStart = totalRows === 0 ? 0 : start + 1;
-            const displayEnd = Math.min(end, totalRows);
-            if (paginationInfo) {
-                paginationInfo.innerHTML = `Hiển thị <span class="font-medium text-slate-800 dark:text-white">${displayStart}-${displayEnd}</span> trên tổng số <span class="font-medium text-slate-800 dark:text-white">${totalRows}</span> ca thi`;
-            }
-
-            if (paginationControls) {
-                paginationControls.innerHTML = '';
-
-                // Nút Trước
-                const prevBtn = document.createElement('button');
-                prevBtn.className = `px-3 py-1.5 border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 rounded-md transition font-medium ${currentPage === 1 ? 'opacity-50 cursor-not-allowed text-slate-300 dark:text-slate-500' : 'hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300'}`;
-                prevBtn.innerText = 'Trước';
-                prevBtn.onclick = () => { if (currentPage > 1) { currentPage--; updatePagination(); } };
-                paginationControls.appendChild(prevBtn);
-
-                // Nút Số
-                for (let i = 1; i <= totalPages; i++) {
-                    const pageBtn = document.createElement('button');
-                    if (i === currentPage) {
-                        pageBtn.className = 'w-8 h-8 flex items-center justify-center bg-[#254ada] text-white rounded-md font-medium shadow-sm';
-                    } else {
-                        pageBtn.className = 'w-8 h-8 flex items-center justify-center bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 rounded-md text-slate-600 dark:text-slate-300 transition';
-                    }
-                    pageBtn.innerText = i;
-                    pageBtn.onclick = () => { currentPage = i; updatePagination(); };
-                    paginationControls.appendChild(pageBtn);
-                }
-
-                // Nút Sau
-                const nextBtn = document.createElement('button');
-                nextBtn.className = `px-3 py-1.5 border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 rounded-md transition font-medium ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed text-slate-300 dark:text-slate-500' : 'hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300'}`;
-                nextBtn.innerText = 'Sau';
-                nextBtn.onclick = () => { if (currentPage < totalPages) { currentPage++; updatePagination(); } };
-                paginationControls.appendChild(nextBtn);
-            }
-        }
-
-        // Bắt sự kiện Tìm kiếm
-        searchInput?.addEventListener('input', function (e) {
-            const text = e.target.value.toLowerCase();
-            filteredRows = allRows.filter(row => {
-                const name = row.querySelector('.shift-name').textContent.toLowerCase();
-                const id = row.querySelector('.shift-id').textContent.toLowerCase();
-                const loc = row.querySelector('.shift-location').textContent.toLowerCase();
-                return name.includes(text) || id.includes(text) || loc.includes(text);
-            });
-            currentPage = 1;
-            updatePagination();
-        });
-
-        filteredRows = [...allRows];
-        updatePagination();
+    })
+    .catch(error => {
+        showToast('error', 'Lỗi', 'Không thể kết nối server');
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = 'Tạo ca thi';
     });
+}
 
-    // Hàm xử lý khi bấm "Tiến hành phân bổ"
-    function submitAssignStudents() {
-        const btn = document.getElementById('btnSubmitAssign');
-        const originalText = btn.innerHTML;
+// Open Edit Modal
+function openEditModal(ma_ca_thi, name, ma_de_thi, date, start_time, end_time, ma_phong) {
+    document.getElementById('edit_ma_ca_thi').value = ma_ca_thi;
+    document.getElementById('edit_ma_de_thi').value = ma_de_thi;
+    document.getElementById('edit_date').value = date.split('/').reverse().join('-');
+    document.getElementById('edit_start_time').value = start_time;
+    document.getElementById('edit_end_time').value = end_time;
+    document.getElementById('edit_ma_phong').value = ma_phong;
+    openModal('editShiftModal');
+}
 
-        // Đổi nút thành trạng thái Đang xử lý
-        btn.innerHTML = '<span class="material-icons animate-spin text-[18px]">autorenew</span> Đang chia phòng...';
-        btn.disabled = true;
-        btn.classList.add('opacity-70', 'cursor-not-allowed');
-
-        // Giả lập thời gian server chạy mất 1.5 giây
-        setTimeout(() => {
-            closeModal('assignStudentsModal');
-            // Hiện thông báo thành công
-            showToast('success', 'Phân bổ thành công', 'Đã gán thành công 25 thí sinh vào các ca thi được chọn.');
-
-            // Khôi phục nút
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-            btn.classList.remove('opacity-70', 'cursor-not-allowed');
-        }, 1500);
+// Submit Edit Shift
+function submitEditShift() {
+    const ma_ca_thi = document.getElementById('edit_ma_ca_thi').value;
+    const ma_de_thi = document.getElementById('edit_ma_de_thi').value;
+    const date = document.getElementById('edit_date').value;
+    const start_time = document.getElementById('edit_start_time').value;
+    const end_time = document.getElementById('edit_end_time').value;
+    const ma_phong = document.getElementById('edit_ma_phong').value;
+    
+    if (!ma_ca_thi || !ma_de_thi || !date || !start_time || !end_time || !ma_phong) {
+        showToast('error', 'Lỗi', 'Vui lòng điền đầy đủ thông tin');
+        return;
     }
+    
+    const btn = document.getElementById('btnEditShift');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-icons animate-spin">sync</span> Đang xử lý...';
+    
+    const formData = new FormData();
+    formData.append('ma_ca_thi', ma_ca_thi);
+    formData.append('ma_de_thi', ma_de_thi);
+    formData.append('date', date);
+    formData.append('start_time', start_time);
+    formData.append('end_time', end_time);
+    formData.append('ma_phong', ma_phong);
+    
+    fetch('api/update_shift.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('success', 'Thành công', 'Cập nhật ca thi thành công');
+            closeModal('editShiftModal');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showToast('error', 'Lỗi', data.message || 'Có lỗi xảy ra');
+        }
+    })
+    .catch(error => {
+        showToast('error', 'Lỗi', 'Không thể kết nối server');
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = 'Lưu thay đổi';
+    });
+}
 
+// Delete Shift
+function deleteShift(ma_ca_thi, name) {
+    if (!confirm('Bạn có chắc muốn xóa ca thi "' + name + '"?')) {
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('ma_ca_thi', ma_ca_thi);
+    
+    fetch('api/delete_shift.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('success', 'Thành công', 'Xóa ca thi thành công');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            showToast('error', 'Lỗi', data.message || 'Có lỗi xảy ra');
+        }
+    })
+    .catch(error => {
+        showToast('error', 'Lỗi', 'Không thể kết nối server');
+    });
+}
+
+// ================================
+// Realtime Status Update (every 30 seconds)
+// ================================
+function updateShiftStatuses() {
+    const statusElements = document.querySelectorAll('.shift-status');
+    const now = new Date();
+    
+    statusElements.forEach(element => {
+        const start = new Date(element.getAttribute('data-start'));
+        const end = new Date(element.getAttribute('data-end'));
+        
+        let status, status_bg, status_text;
+        
+        if (now < start) {
+            status = 'SẮP TỚI';
+            status_bg = 'bg-blue-50 dark:bg-blue-900/30';
+            status_text = 'text-blue-600 dark:text-blue-400';
+        } else if (now >= start && now <= end) {
+            status = 'ĐANG THI';
+            status_bg = 'bg-green-100 dark:bg-green-900/30';
+            status_text = 'text-green-700 dark:text-green-400';
+        } else {
+            status = 'ĐÃ KẾT THÚC';
+            status_bg = 'bg-slate-100 dark:bg-slate-700';
+            status_text = 'text-slate-600 dark:text-slate-400';
+        }
+        
+        element.className = `px-2.5 py-1 text-[10px] font-bold rounded-full ${status_bg} ${status_text} uppercase inline-block leading-tight text-center shift-status`;
+        element.innerHTML = status.replace(' ', '<br>');
+    });
+}
+
+// Update status every 30 seconds
+setInterval(updateShiftStatuses, 30000);
+
+// Search functionality with debounce
+let searchTimeout;
+const searchInput = document.getElementById('searchInput');
+if (searchInput) {
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            this.form.submit();
+        }, 500);
+    });
+}
 </script>

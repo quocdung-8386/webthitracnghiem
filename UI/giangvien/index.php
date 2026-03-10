@@ -7,21 +7,27 @@ if (!isset($_SESSION['vai_tro']) || $_SESSION['vai_tro'] !== 'giangvien') {
 }
 
 require_once '../../app/config/Database.php';
-$db = Database::getConnection();
 
-$ma_giao_vien = $_SESSION['user']['ma_nguoi_dung'];
+try {
+    $db = Database::getConnection();
+    $ma_giao_vien = $_SESSION['ma_nguoi_dung'];
 
-$stmt1 = $db->prepare("SELECT COUNT(*) as total FROM cau_hoi WHERE ma_giao_vien = ?");
-$stmt1->execute([$ma_giao_vien]);
-$tongCauHoi = $stmt1->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+    $stmt1 = $db->prepare("SELECT COUNT(*) as total FROM cau_hoi WHERE ma_giao_vien = ?");
+    $stmt1->execute([$ma_giao_vien]);
+    $tongCauHoi = $stmt1->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
 
-$stmt2 = $db->prepare("SELECT COUNT(*) as total FROM de_thi WHERE ma_giao_vien = ?");
-$stmt2->execute([$ma_giao_vien]);
-$tongDeThi = $stmt2->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+    $stmt2 = $db->prepare("SELECT COUNT(*) as total FROM de_thi WHERE ma_giao_vien = ?");
+    $stmt2->execute([$ma_giao_vien]);
+    $tongDeThi = $stmt2->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
 
-$stmt3 = $db->prepare("SELECT * FROM de_thi WHERE ma_giao_vien = ? ORDER BY ngay_tao DESC LIMIT 3");
-$stmt3->execute([$ma_giao_vien]);
-$deThiGanDay = $stmt3->fetchAll(PDO::FETCH_ASSOC);
+    $stmt3 = $db->prepare("SELECT * FROM de_thi WHERE ma_giao_vien = ? ORDER BY ngay_tao DESC LIMIT 3");
+    $stmt3->execute([$ma_giao_vien]);
+    $deThiGanDay = $stmt3->fetchAll(PDO::FETCH_ASSOC);
+
+} catch (PDOException $e) {
+    // Bắt lỗi DB để web không bị sập nếu bảng chưa có dữ liệu
+    die("Lỗi kết nối CSDL: " . $e->getMessage());
+}
 ?>
 
 <!DOCTYPE html>
@@ -83,7 +89,7 @@ $deThiGanDay = $stmt3->fetchAll(PDO::FETCH_ASSOC);
                     </div>
                 </div>
                 <div style="margin-top: 20px;">
-                    <h1 style="font-size: 24px; color:#1a202c;">Xin chào, Thầy
+                    <h1 style="font-size: 24px; color:#1a202c;">Xin chào, Thầy/Cô
                         <?php echo isset($_SESSION['ho_ten']) ? $_SESSION['ho_ten'] : 'Giảng viên'; ?>! 👋
                     </h1>
                     <p style="color:#718096;">Chào mừng bạn quay trở lại. Hôm nay có một số bài thi cần bạn chấm điểm.

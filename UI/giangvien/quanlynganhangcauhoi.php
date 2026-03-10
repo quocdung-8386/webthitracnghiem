@@ -2,12 +2,38 @@
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
-if (!isset($_SESSION['user']) || $_SESSION['user']['ma_vai_tro'] != 2) {
-    // Giả sử 2 là mã giảng viên
-    header("Location: ?url=login");
+
+// 1. KIỂM TRA BẢO MẬT (Chuẩn hóa theo logic mới)
+if (!isset($_SESSION['vai_tro']) || $_SESSION['vai_tro'] !== 'giangvien') {
+    header("Location: ../login.php");
     exit();
 }
 
+require_once '../../app/config/Database.php';
+
+$danhSachCauHoi = [];
+
+try {
+    $db = Database::getConnection();
+    
+    // Lấy ID giảng viên từ Session
+    $ma_giao_vien = $_SESSION['ma_nguoi_dung'];
+
+    // 2. TRUY VẤN LẤY DANH SÁCH CÂU HỎI CỦA GIẢNG VIÊN NÀY
+    // Dùng LEFT JOIN để lấy được tên danh mục từ bảng danh_muc
+    $sql = "SELECT c.*, d.ten_danh_muc 
+            FROM cau_hoi c
+            LEFT JOIN danh_muc d ON c.ma_danh_muc = d.ma_danh_muc
+            WHERE c.ma_giao_vien = ?
+            ORDER BY c.ngay_tao DESC";
+            
+    $stmt = $db->prepare($sql);
+    $stmt->execute([$ma_giao_vien]);
+    $danhSachCauHoi = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+} catch (PDOException $e) {
+    die("Lỗi hệ thống CSDL: " . $e->getMessage());
+}
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -15,8 +41,8 @@ if (!isset($_SESSION['user']) || $_SESSION['user']['ma_vai_tro'] != 2) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ngân hàng câu hỏi</title>
-    <link rel="stylesheet" href="asset/css/giangvien.css">
+    <title>Ngân hàng câu hỏi - Hệ thống thi trắc nghiệm</title>
+    <link rel="stylesheet" href="../../asset/css/giangvien.css">
     <style>
         .action-text-btn {
             background: none;
@@ -58,15 +84,15 @@ if (!isset($_SESSION['user']) || $_SESSION['user']['ma_vai_tro'] != 2) {
                     <span class="logo-text">Hệ thống thi trắc nghiệm</span>
                 </div>
                 <ul class="nav-menu">
-                    <li><a href="?url=giangvien">Tổng quan</a></li>
-                    <li class="active"><a href="?url=giangvien/cauhoi">Ngân hàng câu hỏi</a></li>
-                    <li><a href="#">Quản lý đề thi</a></li>
-                    <li><a href="#">Chấm bài tự luận</a></li>
-                    <li><a href="#">Thống kê & Báo cáo</a></li>
+                    <li><a href="index.php">📊 Tổng quan</a></li>
+                    <li class="active"><a href="quanlynganhangcauhoi.php">📝 Ngân hàng câu hỏi</a></li>
+                    <li><a href="taodethi.php">⚙️ Quản lý Đề thi</a></li>
+                    <li><a href="#">✍️ Chấm bài tự luận</a></li>
+                    <li><a href="xembaocaothongke.php">📈 Thống kê & Báo cáo</a></li>
                 </ul>
             </div>
             <div class="sidebar-footer">
-                <a href="?url=logout" class="btn-logout-sidebar">Đăng xuất</a>
+                <a href="../logout.php" class="btn-logout-sidebar">🚪 Đăng xuất</a>
             </div>
         </aside>
 
@@ -78,10 +104,10 @@ if (!isset($_SESSION['user']) || $_SESSION['user']['ma_vai_tro'] != 2) {
                 </div>
                 <div class="user-profile">
                     <div style="text-align: right; margin-right: 10px;">
-                        <strong
-                            style="display:block; color:#2d3748;"><?php echo $_SESSION['user']['ho_ten'] ?? 'Giảng viên'; ?></strong>
-                        <span style="font-size: 12px; color:#718096;">Giảng viên</span>
+                        <strong style="display:block; color:#2d3748;"><?php echo $_SESSION['ho_ten'] ?? 'Giảng viên'; ?></strong>
+                        <span style="font-size: 12px; color:#718096;">Giáo viên Toán học</span>
                     </div>
+                    <div class="avatar" style="background: #c3dafe; color: #3182ce;">👨‍🏫</div>
                 </div>
             </header>
 
@@ -152,7 +178,7 @@ if (!isset($_SESSION['user']) || $_SESSION['user']['ma_vai_tro'] != 2) {
                         <?php else: ?>
                             <tr>
                                 <td colspan="6" style="text-align: center; padding: 30px; color: #718096;">
-                                    Chưa có câu hỏi nào trong ngân hàng.
+                                    Chưa có câu hỏi nào trong ngân hàng. Bấm "Thêm câu hỏi mới" để bắt đầu soạn đề.
                                 </td>
                             </tr>
                         <?php endif; ?>
