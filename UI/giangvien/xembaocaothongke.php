@@ -26,7 +26,7 @@ if (!isset($_SESSION['user']) || $_SESSION['user']['ma_vai_tro'] !== 'giangvien'
                         <span class="logo-graduation-cap">&#127891;</span>
                         <div class="logo-book-pages"></div>
                     </div>
-                    <span class="logo-text">Hệ thống thi trắc nghiệm</span>
+                    <span class="logo-text">Hệ thống thi trực tuyến</span>
                 </div>
                 <ul class="nav-menu">
                     <li><a href="index.php">📊 Tổng quan</a></li>
