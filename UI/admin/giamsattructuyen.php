@@ -1,47 +1,143 @@
 <?php
 // 1. Cấu hình thông tin trang
 $title = "Giám sát trực tuyến - Hệ Thống Thi Trực Tuyến";
-$active_menu = "monitor_exam"; // Làm sáng menu "Giám sát trực tuyến" trong Sidebar
+$active_menu = "monitor_exam";
 
-// Dữ liệu mô phỏng trạng thái các thí sinh
-$students = [
-    [
-        'name' => 'Nguyễn Văn A', 'mssv' => '20204512', 'avatar' => 'NV', 'avatar_bg' => 'bg-slate-800 text-white dark:bg-slate-700',
-        'progress' => '32/40', 'percent' => 80, 
-        'status_type' => 'normal', 'status_msg' => 'Chưa có vi phạm nào', 
-        'online' => true
-    ],
-    [
-        'name' => 'Trần Thị B', 'mssv' => '20204555', 'avatar' => 'TB', 'avatar_bg' => 'bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400',
-        'progress' => '15/40', 'percent' => 37, 
-        'status_type' => 'danger', 'status_msg' => 'CẢNH BÁO VI PHẠM<br><span class="text-[11px] font-normal text-red-500 dark:text-red-400 mt-1 inline-block">Rời khỏi trình duyệt (Lần 2)</span>', 
-        'online' => true
-    ],
-    [
-        'name' => 'Lê Minh C', 'mssv' => '20201234', 'avatar' => 'LM', 'avatar_bg' => 'bg-slate-200 text-slate-500 dark:bg-slate-700 dark:text-slate-400',
-        'progress' => '05/40', 'percent' => 12, 
-        'status_type' => 'disconnected', 'status_msg' => 'MẤT KẾT NỐI (2P)', 
-        'online' => false
-    ],
-    [
-        'name' => 'Phạm Thanh D', 'mssv' => '20207890', 'avatar' => 'PD', 'avatar_bg' => 'bg-orange-100 text-orange-600 dark:bg-orange-900/50 dark:text-orange-400',
-        'progress' => '20/40', 'percent' => 50, 
-        'status_type' => 'normal', 'status_msg' => 'Chưa có vi phạm nào', 
-        'online' => true
-    ],
-    [
-        'name' => 'Đỗ Mỹ Linh', 'mssv' => '20209999', 'avatar' => 'DL', 'avatar_bg' => 'bg-purple-100 text-purple-600 dark:bg-purple-900/50 dark:text-purple-400',
-        'progress' => '38/40', 'percent' => 95, 
-        'status_type' => 'normal', 'status_msg' => 'Chưa có vi phạm nào', 
-        'online' => true
-    ],
-    [
-        'name' => 'Vũ Đức Tài', 'mssv' => '20202222', 'avatar' => 'VT', 'avatar_bg' => 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400',
-        'progress' => '25/40', 'percent' => 62, 
-        'status_type' => 'warning', 'status_msg' => 'CÓ 2 CẢNH BÁO<br><span class="text-[11px] font-normal text-orange-500 dark:text-orange-400 mt-1 inline-block">Phát hiện giọng nói lạ...</span>', 
-        'online' => true
-    ],
-];
+require_once __DIR__ . '/../../app/config/Database.php';
+$conn = Database::getConnection();
+
+// Lấy tham số tìm kiếm và filter
+$search = isset($_GET['search']) ? trim($_GET['search']) : '';
+$status_filter = isset($_GET['status']) ? $_GET['status'] : 'all';
+
+// Thống kê tổng quan
+$statsSql = "
+SELECT 
+    (SELECT COUNT(*) FROM bai_lam WHERE trang_thai = 'dang_lam') as total_examining,
+    (SELECT COUNT(*) FROM vi_pham_thi WHERE thoi_gian >= DATE_SUB(NOW(), INTERVAL 1 HOUR)) as total_violations
+";
+$statsStmt = $conn->query($statsSql);
+$stats = $statsStmt->fetch(PDO::FETCH_ASSOC);
+$totalExamining = $stats['total_examining'] ?? 0;
+$totalViolations = $stats['total_violations'] ?? 0;
+
+// Query lấy danh sách thí sinh đang thi
+// SỬA THEO DATABASE SCHEMA MỚI:
+// - bai_lam.thoi_diem_bat_dau (không phải thoi_gian_bat_dau)
+// - so_cau_da_lam tính từ COUNT(chi_tiet_bai_lam) WHERE ma_dap_an_chon IS NOT NULL
+// - tong_so_cau tính từ COUNT(chi_tiet_de_thi) JOIN ca_thi -> de_thi
+$sql = "
+SELECT 
+    nd.ma_nguoi_dung,
+    nd.ho_ten,
+    nd.ten_dang_nhap,
+    bl.ma_bai_lam,
+    bl.thoi_diem_bat_dau,
+    bl.trang_thai,
+    ct.ma_ca_thi,
+    dt.ma_de_thi,
+    dt.tieu_de as ten_de_thi,
+    (
+        SELECT COUNT(*) 
+        FROM chi_tiet_bai_lam ctbl 
+        WHERE ctbl.ma_bai_lam = bl.ma_bai_lam 
+        AND ctbl.ma_dap_an_chon IS NOT NULL
+    ) as so_cau_da_lam,
+    (
+        SELECT COUNT(*) 
+        FROM chi_tiet_de_thi ctdt 
+        INNER JOIN ca_thi ct2 ON ctdt.ma_de_thi = (
+            SELECT ma_de_thi FROM ca_thi WHERE ma_ca_thi = bl.ma_ca_thi
+        )
+        WHERE ctdt.ma_de_thi = dt.ma_de_thi
+    ) as tong_so_cau,
+    (
+        SELECT COUNT(*) 
+        FROM vi_pham_thi vpt 
+        WHERE vpt.ma_bai_lam = bl.ma_bai_lam
+    ) as so_vi_pham,
+    (
+        SELECT GROUP_CONCAT(vpt.loai_vi_pham SEPARATOR '|') 
+        FROM vi_pham_thi vpt 
+        WHERE vpt.ma_bai_lam = bl.ma_bai_lam
+    ) as ds_vi_pham
+FROM nguoi_dung nd
+INNER JOIN bai_lam bl ON nd.ma_nguoi_dung = bl.ma_nguoi_dung
+INNER JOIN ca_thi ct ON bl.ma_ca_thi = ct.ma_ca_thi
+INNER JOIN de_thi dt ON ct.ma_de_thi = dt.ma_de_thi
+WHERE bl.trang_thai = 'dang_lam'
+";
+
+$params = [];
+if (!empty($search)) {
+    $sql .= " AND (nd.ho_ten LIKE ? OR nd.ten_dang_nhap LIKE ?)";
+    $searchParam = "%$search%";
+    $params = [$searchParam, $searchParam];
+}
+
+$sql .= " ORDER BY bl.thoi_diem_bat_dau DESC LIMIT 50";
+
+$stmt = $conn->prepare($sql);
+$stmt->execute($params);
+$result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Xử lý dữ liệu thành mảng $students
+$students = [];
+$now = new DateTime();
+
+foreach ($result as $row) {
+    $progress = $row['so_cau_da_lam'] . '/' . $row['tong_so_cau'];
+    $percent = $row['tong_so_cau'] > 0 ? round(($row['so_cau_da_lam'] / $row['tong_so_cau']) * 100) : 0;
+    
+    // Avatar từ tên đăng nhập
+    $parts = explode(' ', $row['ho_ten']);
+    $avatar = count($parts) >= 2 ? substr($parts[0], 0, 1) . substr($parts[1], 0, 1) : substr($row['ho_ten'], 0, 2);
+    $avatar_bg = 'bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400';
+    
+    // Xác định trạng thái
+    $so_vi_pham = (int)$row['so_vi_pham'];
+    $is_online = true;
+    $status_type = 'normal';
+    $status_msg = 'Chưa có vi phạm nào';
+    
+    if ($so_vi_pham >= 5) {
+        $status_type = 'disconnected';
+        $status_msg = 'MẤT KẾT NỐI';
+        $is_online = false;
+    } elseif ($so_vi_pham >= 3) {
+        $status_type = 'danger';
+        $violations = explode('|', $row['ds_vi_pham'] ?? '');
+        $violation_count = count($violations);
+        $status_msg = 'CẢNH BÁO VI PHẠM<br><span class="text-[11px] font-normal text-red-500 dark:text-red-400 mt-1 inline-block">' . htmlspecialchars($violations[0] ?? 'Vi phạm') . ' (Lần ' . $violation_count . ')</span>';
+    } elseif ($so_vi_pham >= 1) {
+        $status_type = 'warning';
+        $violations = explode('|', $row['ds_vi_pham'] ?? '');
+        $status_msg = 'CÓ ' . $so_vi_pham . ' CẢNH BÁO<br><span class="text-[11px] font-normal text-orange-500 dark:text-orange-400 mt-1 inline-block">' . htmlspecialchars($violations[0] ?? 'Vi phạm') . '</span>';
+    }
+    
+    // Filter theo status
+    if ($status_filter === 'violation' && $status_type === 'normal') {
+        continue;
+    }
+    if ($status_filter === 'disconnected' && $status_type !== 'disconnected') {
+        continue;
+    }
+    
+    $students[] = [
+        'ma_nguoi_dung' => $row['ma_nguoi_dung'],
+        'ma_bai_lam' => $row['ma_bai_lam'],
+        'name' => htmlspecialchars($row['ho_ten']),
+        'mssv' => htmlspecialchars($row['ten_dang_nhap']),
+        'thoi_diem_bat_dau' => $row['thoi_diem_bat_dau'],
+        'avatar' => $avatar,
+        'avatar_bg' => $avatar_bg,
+        'progress' => $progress,
+        'percent' => $percent,
+        'status_type' => $status_type,
+        'status_msg' => $status_msg,
+        'online' => $is_online
+    ];
+}
 
 include 'components/header.php';
 include 'components/sidebar.php';
@@ -65,11 +161,11 @@ include 'components/sidebar.php';
                 </div>
                 <div class="w-px h-6 bg-slate-200 dark:bg-slate-700"></div>
                 <div class="flex items-center gap-1.5 text-sm font-semibold text-green-600 dark:text-green-500">
-                    <span class="w-2 h-2 rounded-full bg-green-500"></span> 124 Đang thi
+                    <span class="w-2 h-2 rounded-full bg-green-500"></span> <?php echo $totalExamining; ?> Đang thi
                 </div>
                 <div class="w-px h-6 bg-slate-200 dark:bg-slate-700"></div>
                 <div class="flex items-center gap-1.5 text-sm font-semibold text-red-500 dark:text-red-400">
-                    <span class="w-2 h-2 rounded-full bg-red-500"></span> 3 Vi phạm
+                    <span class="w-2 h-2 rounded-full bg-red-500"></span> <?php echo $totalViolations; ?> Vi phạm
                 </div>
             </div>
 

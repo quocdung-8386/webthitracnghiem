@@ -218,18 +218,18 @@ include 'components/sidebar.php';
                                 </td>
                                 <td class="px-6 py-4 text-right space-x-1 text-slate-400 dark:text-slate-500">
                                     <button
-                                        onclick="showToast('info', 'Chỉnh sửa', 'Mở bảng chỉnh sửa người dùng <?php echo $user['name']; ?>')"
+                                        onclick="editUser('<?php echo $user['id']; ?>', '<?php echo addslashes($user['name']); ?>', '<?php echo $user['email']; ?>', '<?php echo addslashes($user['role']); ?>')"
                                         class="hover:text-[#254ada] dark:hover:text-[#4b6bfb] p-1.5 transition rounded-md hover:bg-blue-50 dark:hover:bg-slate-700">
                                         <span class="material-icons text-[18px]">edit</span>
                                     </button>
                                     <button
-                                        onclick="showToast('warning', 'Khóa tài khoản', 'Tài khoản <?php echo $user['name']; ?> đã bị khóa')"
+                                        onclick="toggleUserStatus('<?php echo $user['id']; ?>', '<?php echo addslashes($user['name']); ?>', '<?php echo ($user['status'] == 'Bị khóa') ? '1' : '0'; ?>')"
                                         class="hover:text-emerald-600 dark:hover:text-emerald-400 p-1.5 transition rounded-md hover:bg-emerald-50 dark:hover:bg-slate-700 <?php echo ($user['status'] == 'Bị khóa') ? 'text-emerald-500' : ''; ?>">
                                         <span
                                             class="material-icons text-[18px]"><?php echo ($user['status'] == 'Bị khóa') ? 'lock' : 'lock_open'; ?></span>
                                     </button>
                                     <button
-                                        onclick="showToast('error', 'Xóa người dùng', 'Đã xóa người dùng khỏi hệ thống')"
+                                        onclick="deleteUser('<?php echo $user['id']; ?>', '<?php echo addslashes($user['name']); ?>')"
                                         class="hover:text-red-600 dark:hover:text-red-400 p-1.5 transition rounded-md hover:bg-red-50 dark:hover:bg-slate-700">
                                         <span class="material-icons text-[18px]">delete</span>
                                     </button>
@@ -271,30 +271,30 @@ include 'components/sidebar.php';
             <div class="mb-4">
                 <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Họ và tên <span
                         class="text-red-500">*</span></label>
-                <input type="text" required
+                <input type="text" name="ho_ten" id="add_ho_ten" required
                     class="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg px-3.5 py-2.5 text-sm focus:ring-[#254ada] outline-none">
             </div>
             <div class="grid grid-cols-2 gap-4 mb-4">
                 <div>
                     <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Mã người
                         dùng <span class="text-red-500">*</span></label>
-                    <input type="text" required
-                        class="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg px-3.5 py-2.5 text-sm focus:ring-[#254ada] outline-none">
+                    <input type="text" name="ma_nguoi_dung" id="add_ma_nguoi_dung" required readonly
+                        class="w-full border border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-600 text-slate-800 dark:text-white rounded-lg px-3.5 py-2.5 text-sm focus:ring-[#254ada] outline-none cursor-not-allowed">
                 </div>
                 <div>
                     <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Vai
                         trò</label>
-                    <select
+                    <select name="vai_tro" id="add_vai_tro"
                         class="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg px-3.5 py-2.5 text-sm focus:ring-[#254ada] outline-none cursor-pointer">
-                        <option>Thí sinh</option>
-                        <option>Giảng viên</option>
-                        <option>Quản trị viên</option>
+                        <option value="Thí sinh">Thí sinh</option>
+                        <option value="Giảng viên">Giảng viên</option>
+                        <option value="Quản trị viên">Quản trị viên</option>
                     </select>
                 </div>
             </div>
             <div class="mb-5">
                 <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Email</label>
-                <input type="email" required
+                <input type="email" name="email" id="add_email" required
                     class="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg px-3.5 py-2.5 text-sm focus:ring-[#254ada] outline-none">
             </div>
             <div class="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-700">
@@ -317,22 +317,79 @@ include 'components/sidebar.php';
             <button onclick="closeModal('importUserModal')" class="text-slate-400 hover:text-red-500 transition"><span
                     class="material-icons">close</span></button>
         </div>
-        <div class="p-6">
-            <div
+        <form id="formImportUser" onsubmit="event.preventDefault(); submitImportUser();" class="p-6">
+            <div id="dropZone"
                 class="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-8 flex flex-col items-center justify-center text-center hover:bg-slate-50 dark:hover:bg-slate-700/50 transition cursor-pointer">
                 <span class="material-icons text-[40px] text-slate-400 mb-2">cloud_upload</span>
                 <p class="text-sm text-slate-600 dark:text-slate-300 font-medium">Kéo thả file Excel vào đây hoặc <span
                         class="text-[#254ada] dark:text-[#4b6bfb] hover:underline">Chọn file</span></p>
                 <p class="text-[11px] text-slate-400 mt-2">Hỗ trợ .xlsx, .xls, .csv</p>
+                <input type="file" id="importFile" name="file" accept=".xlsx,.xls,.csv" class="hidden">
             </div>
+            <p id="fileName" class="text-sm text-slate-600 dark:text-slate-400 mt-3 text-center hidden"></p>
             <div class="flex justify-end gap-3 mt-6">
-                <button onclick="closeModal('importUserModal')"
+                <button type="button" onclick="closeModal('importUserModal')"
                     class="px-4 py-2 text-sm text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 rounded-lg">Hủy</button>
-                <button
-                    onclick="showToast('success', 'Import thành công', 'Đã thêm danh sách người dùng vào hệ thống'); closeModal('importUserModal');"
+                <button type="submit"
                     class="px-4 py-2 bg-[#254ada] text-white rounded-lg text-sm font-medium">Tải lên</button>
             </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div id="editUserModal"
+    class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity">
+    <div
+        class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-[500px] overflow-hidden transform transition-all border border-slate-200 dark:border-slate-700 flex flex-col max-h-[90vh]">
+        <div class="flex justify-between items-center p-5 border-b border-slate-100 dark:border-slate-700 shrink-0">
+            <h3 class="font-bold text-lg text-slate-800 dark:text-white flex items-center gap-2">
+                <span class="material-icons text-[#254ada] dark:text-[#4b6bfb]">edit</span> Chỉnh sửa người dùng
+            </h3>
+            <button onclick="closeModal('editUserModal')"
+                class="text-slate-400 hover:text-red-500 transition focus:outline-none"><span
+                    class="material-icons">close</span></button>
         </div>
+        <form id="formEditUser" onsubmit="event.preventDefault(); submitEditUser();"
+            class="flex-1 overflow-y-auto custom-scrollbar p-5">
+            <input type="hidden" name="ma_nguoi_dung" id="edit_ma_nguoi_dung">
+            <div class="mb-4">
+                <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Họ và tên <span
+                        class="text-red-500">*</span></label>
+                <input type="text" name="ho_ten" id="edit_ho_ten" required
+                    class="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg px-3.5 py-2.5 text-sm focus:ring-[#254ada] outline-none">
+            </div>
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Mã người
+                        dùng <span class="text-red-500">*</span></label>
+                    <input type="text" id="edit_ma_nguoi_dung_display" required readonly
+                        class="w-full border border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-600 text-slate-800 dark:text-white rounded-lg px-3.5 py-2.5 text-sm cursor-not-allowed">
+                </div>
+                <div>
+                    <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Vai
+                        trò</label>
+                    <select name="vai_tro" id="edit_vai_tro"
+                        class="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg px-3.5 py-2.5 text-sm focus:ring-[#254ada] outline-none cursor-pointer">
+                        <option value="Thí sinh">Thí sinh</option>
+                        <option value="Giảng viên">Giảng viên</option>
+                        <option value="Quản trị viên">Quản trị viên</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mb-5">
+                <label class="block text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Email</label>
+                <input type="email" name="email" id="edit_email" required
+                    class="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-lg px-3.5 py-2.5 text-sm focus:ring-[#254ada] outline-none">
+            </div>
+            <div class="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-700">
+                <button type="button" onclick="closeModal('editUserModal')"
+                    class="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition">Hủy</button>
+                <button type="submit"
+                    class="px-4 py-2 bg-[#254ada] hover:bg-[#1e3bb3] text-white rounded-lg text-sm font-medium transition flex items-center gap-2">Lưu
+                    thay đổi</button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -353,6 +410,8 @@ include 'components/sidebar.php';
 <?php include 'components/footer.php'; ?>
 
 <script>
+    // ==================== QUẢN LÝ NGƯỜI DÙNG API ====================
+    
     // Hàm Mở / Đóng Modal
     function openModal(id) {
         const modal = document.getElementById(id);
@@ -362,13 +421,6 @@ include 'components/sidebar.php';
     function closeModal(id) {
         const modal = document.getElementById(id);
         if (modal) modal.classList.add('hidden');
-    }
-
-    // Hàm xử lý submit form
-    function submitAddUser() {
-        closeModal('addUserModal');
-        showToast('success', 'Thành công', 'Đã thêm người dùng mới vào hệ thống.');
-        document.getElementById('formAddUser').reset();
     }
 
     // Hàm hiển thị Toast
@@ -409,27 +461,274 @@ include 'components/sidebar.php';
         setTimeout(() => { if (container.contains(toastEl)) toastEl.querySelector('.toast-close').click(); }, 4000);
     }
 
-    // Sự kiện khởi tạo
-    document.addEventListener('DOMContentLoaded', function () {
+    // Hàm reload lại danh sách người dùng
+    async function loadUsers() {
+        try {
+            const response = await fetch('../../api/user_list.php');
+            const data = await response.json();
+            
+            if (data.success) {
+                renderUsersTable(data.users);
+            } else {
+                showToast('error', 'Lỗi', data.message);
+            }
+        } catch (error) {
+            showToast('error', 'Lỗi', 'Không thể tải danh sách người dùng');
+            console.error(error);
+        }
+    }
 
-        // Dark Mode
-        const darkModeToggle = document.getElementById('darkModeToggle');
-        const darkModeIcon = document.getElementById('darkModeIcon');
-        const htmlElement = document.documentElement;
+    // Hàm render lại bảng người dùng
+    function renderUsersTable(users) {
+        const tbody = document.querySelector('#usersTable tbody');
+        if (!tbody) return;
 
-        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            htmlElement.classList.add('dark');
-            if (darkModeIcon) darkModeIcon.textContent = 'light_mode';
+        const colors = ['bg-blue-100 text-blue-600', 'bg-orange-100 text-orange-600', 'bg-green-100 text-green-600', 'bg-purple-100 text-purple-600'];
+
+        tbody.innerHTML = users.map((user, index) => {
+            const initial = user.initial;
+            const colorClass = colors[index % colors.length];
+            
+            const role_bg = user.role_text.includes('purple') ? 'bg-purple-50' : (user.role_text.includes('emerald') ? 'bg-emerald-50' : 'bg-blue-50');
+            const role_text = user.role_text;
+            
+            const isLocked = user.status_value == 0;
+            
+            return `
+                <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-700/50 transition group user-row">
+                    <td class="px-6 py-4 text-center">
+                        <input type="checkbox" class="row-checkbox w-4 h-4 text-[#254ada] rounded border-slate-300 focus:ring-[#254ada] dark:border-slate-600 dark:bg-slate-700 cursor-pointer">
+                    </td>
+                    <td class="px-6 py-4 flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-full ${user.avatar_bg} ${user.avatar_text} dark:bg-opacity-20 flex items-center justify-center font-bold text-sm shrink-0">
+                            ${initial}
+                        </div>
+                        <div>
+                            <p class="font-semibold text-slate-800 dark:text-white user-name">${user.name}</p>
+                            <p class="text-[12px] text-slate-400 dark:text-slate-500 mt-0.5 user-email">${user.email}</p>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-slate-500 dark:text-slate-400 text-[13px] user-id">${user.id}</td>
+                    <td class="px-6 py-4">
+                        <span class="px-2.5 py-1 ${role_bg} ${role_text} dark:bg-opacity-20 rounded-md text-[11px] font-semibold text-center inline-block min-w-[80px] leading-tight">${user.role}</span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 ${user.status_bg} ${user.status_text} dark:bg-opacity-20 rounded-full text-[11px] font-semibold">
+                            <div class="w-1.5 h-1.5 rounded-full ${user.dot}"></div>
+                            ${user.status}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-right space-x-1 text-slate-400 dark:text-slate-500">
+                        <button onclick="editUser('${user.id}', '${user.name.replace(/'/g, "\\'")}', '${user.email}', '${user.role.replace(/'/g, "\\'")}')" class="hover:text-[#254ada] dark:hover:text-[#4b6bfb] p-1.5 transition rounded-md hover:bg-blue-50 dark:hover:bg-slate-700">
+                            <span class="material-icons text-[18px]">edit</span>
+                        </button>
+                        <button onclick="toggleUserStatus('${user.id}', '${user.name.replace(/'/g, "\\'")}', '${isLocked ? '1' : '0'}')" class="hover:text-emerald-600 dark:hover:text-emerald-400 p-1.5 transition rounded-md hover:bg-emerald-50 dark:hover:bg-slate-700 ${isLocked ? 'text-emerald-500' : ''}">
+                            <span class="material-icons text-[18px]">${isLocked ? 'lock' : 'lock_open'}</span>
+                        </button>
+                        <button onclick="deleteUser('${user.id}', '${user.name.replace(/'/g, "\\'")}')" class="hover:text-red-600 dark:hover:text-red-400 p-1.5 transition rounded-md hover:bg-red-50 dark:hover:bg-slate-700">
+                            <span class="material-icons text-[18px]">delete</span>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        // Cập nhật lại sự kiện cho checkbox
+        initCheckboxEvents();
+    }
+
+    // ==================== THÊM NGƯỜI DÙNG ====================
+    
+    async function submitAddUser() {
+        const ho_ten = document.getElementById('add_ho_ten').value.trim();
+        const email = document.getElementById('add_email').value.trim();
+        const vai_tro = document.getElementById('add_vai_tro').value;
+
+        if (!ho_ten || !email) {
+            showToast('error', 'Lỗi', 'Vui lòng nhập đầy đủ thông tin');
+            return;
         }
 
-        darkModeToggle?.addEventListener('click', () => {
-            htmlElement.classList.toggle('dark');
-            const isDark = htmlElement.classList.contains('dark');
-            localStorage.setItem('theme', isDark ? 'dark' : 'light');
-            if (darkModeIcon) darkModeIcon.textContent = isDark ? 'light_mode' : 'dark_mode';
-        });
+        try {
+            const response = await fetch('../../api/user_add.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ho_ten, email, vai_tro })
+            });
 
-        // Checkbox All
+            const data = await response.json();
+
+            if (data.success) {
+                showToast('success', 'Thành công', data.message);
+                closeModal('addUserModal');
+                document.getElementById('formAddUser').reset();
+                loadUsers(); // Reload bảng
+            } else {
+                showToast('error', 'Lỗi', data.message);
+            }
+        } catch (error) {
+            showToast('error', 'Lỗi', 'Không thể thêm người dùng');
+            console.error(error);
+        }
+    }
+
+    // ==================== SỬA NGƯỜI DÙNG ====================
+    
+    function editUser(id, name, email, role) {
+        document.getElementById('edit_ma_nguoi_dung').value = id;
+        document.getElementById('edit_ma_nguoi_dung_display').value = id;
+        document.getElementById('edit_ho_ten').value = name;
+        document.getElementById('edit_email').value = email;
+        document.getElementById('edit_vai_tro').value = role;
+        openModal('editUserModal');
+    }
+
+    async function submitEditUser() {
+        const ma_nguoi_dung = document.getElementById('edit_ma_nguoi_dung').value;
+        const ho_ten = document.getElementById('edit_ho_ten').value.trim();
+        const email = document.getElementById('edit_email').value.trim();
+        const vai_tro = document.getElementById('edit_vai_tro').value;
+
+        if (!ho_ten || !email) {
+            showToast('error', 'Lỗi', 'Vui lòng nhập đầy đủ thông tin');
+            return;
+        }
+
+        try {
+            const response = await fetch('../../api/user_update.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ma_nguoi_dung, ho_ten, email, vai_tro })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showToast('success', 'Thành công', data.message);
+                closeModal('editUserModal');
+                loadUsers(); // Reload bảng
+            } else {
+                showToast('error', 'Lỗi', data.message);
+            }
+        } catch (error) {
+            showToast('error', 'Lỗi', 'Không thể cập nhật người dùng');
+            console.error(error);
+        }
+    }
+
+    // ==================== KHÓA/MỞ KHÓA ====================
+    
+    async function toggleUserStatus(id, name, currentStatus) {
+        const action = currentStatus === '1' ? 'mở khóa' : 'khóa';
+        
+        if (!confirm(`Bạn có chắc chắn muốn ${action} tài khoản của "${name}"?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch('../../api/user_toggle_status.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ma_nguoi_dung: id })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showToast('success', 'Thành công', data.message);
+                loadUsers(); // Reload bảng
+            } else {
+                showToast('error', 'Lỗi', data.message);
+            }
+        } catch (error) {
+            showToast('error', 'Lỗi', 'Không thể thay đổi trạng thái');
+            console.error(error);
+        }
+    }
+
+    // ==================== XÓA NGƯỜI DÙNG ====================
+    
+    async function deleteUser(id, name) {
+        if (!confirm(`Bạn có chắc chắn muốn xóa người dùng "${name}"?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch('../../api/user_delete.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ma_nguoi_dung: id })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showToast('success', 'Thành công', data.message);
+                loadUsers(); // Reload bảng
+            } else {
+                showToast('error', 'Lỗi', data.message);
+            }
+        } catch (error) {
+            showToast('error', 'Lỗi', 'Không thể xóa người dùng');
+            console.error(error);
+        }
+    }
+
+    // ==================== IMPORT NGƯỜI DÙNG ====================
+    
+    // Xử lý click vào dropzone
+    document.getElementById('dropZone')?.addEventListener('click', function() {
+        document.getElementById('importFile').click();
+    });
+
+    // Hiển thị tên file khi chọn
+    document.getElementById('importFile')?.addEventListener('change', function(e) {
+        const fileNameEl = document.getElementById('fileName');
+        if (this.files.length > 0) {
+            fileNameEl.textContent = 'Đã chọn: ' + this.files[0].name;
+            fileNameEl.classList.remove('hidden');
+        } else {
+            fileNameEl.classList.add('hidden');
+        }
+    });
+
+    async function submitImportUser() {
+        const fileInput = document.getElementById('importFile');
+        
+        if (!fileInput.files.length) {
+            showToast('error', 'Lỗi', 'Vui lòng chọn file để import');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+
+        try {
+            const response = await fetch('../../api/user_import.php', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showToast('success', 'Thành công', data.message);
+                closeModal('importUserModal');
+                document.getElementById('formImportUser').reset();
+                document.getElementById('fileName').classList.add('hidden');
+                loadUsers(); // Reload bảng
+            } else {
+                showToast('error', 'Lỗi', data.message);
+            }
+        } catch (error) {
+            showToast('error', 'Lỗi', 'Không thể import người dùng');
+            console.error(error);
+        }
+    }
+
+    // ==================== SỰ KIỆN CHECKBOX ====================
+    
+    function initCheckboxEvents() {
         const selectAllBtn = document.getElementById('selectAllBtn');
         const rowCheckboxes = document.querySelectorAll('.row-checkbox');
 
@@ -450,6 +749,28 @@ include 'components/sidebar.php';
                 }
             });
         });
+    }
+
+    // ==================== KHỞI TẠO ====================
+    
+    document.addEventListener('DOMContentLoaded', function () {
+        
+        // Dark Mode
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        const darkModeIcon = document.getElementById('darkModeIcon');
+        const htmlElement = document.documentElement;
+
+        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            htmlElement.classList.add('dark');
+            if (darkModeIcon) darkModeIcon.textContent = 'light_mode';
+        }
+
+        darkModeToggle?.addEventListener('click', () => {
+            htmlElement.classList.toggle('dark');
+            const isDark = htmlElement.classList.contains('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            if (darkModeIcon) darkModeIcon.textContent = isDark ? 'light_mode' : 'dark_mode';
+        });
 
         // Dropdown Notifications
         const notifButton = document.getElementById('notifButton');
@@ -467,7 +788,10 @@ include 'components/sidebar.php';
             });
         }
 
-        // TÌM KIẾM VÀ PHÂN TRANG THÔNG MINH
+        // Checkbox events
+        initCheckboxEvents();
+
+        // TÌM KIẾM VÀ PHÂN TRANG
         const rowsPerPage = 5;
         let currentPage = 1;
         const allRows = Array.from(document.querySelectorAll('.user-row'));
@@ -478,12 +802,10 @@ include 'components/sidebar.php';
         const searchInput = document.getElementById('searchInput');
 
         function updatePagination() {
-            // Để hiển thị dấu ... đẹp mắt, mình sẽ sử dụng thuật toán thông minh
-            // Tuy nhiên, do data ở đây lấy trực tiếp từ CSDL, mình sẽ set logic ẩn/hiện tự động.
             const totalRows = filteredRows.length;
             let totalPages = Math.ceil(totalRows / rowsPerPage) || 1;
 
-            // Demo logic: Nếu mảng thật quá ngắn, ta sẽ giả lập 458 trang để test UI
+            // Demo mode
             const isDemoMode = true;
             const fakeTotalPages = 458;
             const fakeTotalRows = 45800;
@@ -497,13 +819,11 @@ include 'components/sidebar.php';
             const start = (currentPage - 1) * rowsPerPage;
             const end = start + rowsPerPage;
 
-            // Hiển thị dòng tương ứng
             allRows.forEach(row => row.style.display = 'none');
             if (currentPage === 1 || !isDemoMode || (searchInput && searchInput.value.trim() !== '')) {
                 filteredRows.slice(start, end).forEach(row => row.style.display = '');
             }
 
-            // Text hiển thị
             let displayStart = totalRows === 0 ? 0 : start + 1;
             let displayEnd = Math.min(end, (isDemoMode && searchInput && searchInput.value.trim() === '') ? fakeTotalRows : totalRows);
             let displayTotal = (isDemoMode && searchInput && searchInput.value.trim() === '') ? fakeTotalRows : totalRows;
@@ -512,7 +832,6 @@ include 'components/sidebar.php';
                 paginationInfo.innerHTML = `Hiển thị <span class="font-medium text-slate-800 dark:text-white">${displayStart} - ${displayEnd}</span> của <span class="font-medium text-slate-800 dark:text-white">${displayTotal.toLocaleString()}</span> người dùng`;
             }
 
-            // Nút phân trang
             if (paginationControls) {
                 paginationControls.innerHTML = '';
 
@@ -569,6 +888,9 @@ include 'components/sidebar.php';
                 nextBtn.onclick = () => { if (currentPage < totalPages) { currentPage++; updatePagination(); } };
                 paginationControls.appendChild(nextBtn);
             }
+            
+            const selectAllBtn = document.getElementById('selectAllBtn');
+            const rowCheckboxes = document.querySelectorAll('.row-checkbox');
             if (selectAllBtn) { selectAllBtn.checked = false; selectAllBtn.indeterminate = false; }
             rowCheckboxes.forEach(cb => cb.checked = false);
         }
@@ -585,7 +907,6 @@ include 'components/sidebar.php';
             updatePagination();
         });
 
-        // Chạy lần đầu
         updatePagination();
     });
 </script>
