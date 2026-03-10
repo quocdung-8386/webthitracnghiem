@@ -1,10 +1,8 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
-if (!isset($_SESSION['user']) || $_SESSION['user']['ma_vai_tro'] != 2) {
-    header("Location: ../../login.php");
+session_start();
+// Kiểm tra bảo mật
+if (!isset($_SESSION['vai_tro']) || $_SESSION['vai_tro'] !== 'giangvien') {
+    header("Location: ../login.php");
     exit();
 }
 

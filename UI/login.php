@@ -1,170 +1,212 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
-require_once '../app/config/Database.php';
+require_once __DIR__ . '/../app/config/Database.php';
 
-if (isset($_SESSION['user'])) {
-    $ma_vai_tro = $_SESSION['user']['ma_vai_tro'];
-    if ($ma_vai_tro == 2) {
-        header("Location: giangvien/index.php");
-    } elseif ($ma_vai_tro == 3) {
-        header("Location: thisinh/timkiemvathamgiathi.php");
-    } elseif ($ma_vai_tro == 1) {
-        header("Location: admin/bangdieukhientongquan.php");
+// Kiểm tra nếu đã đăng nhập thì đá về đúng trang
+if (isset($_SESSION['vai_tro'])) {
+    switch ($_SESSION['vai_tro']) {
+        case 'admin':
+            header("Location: admin/bangdieukhientongquan.php");
+            break;
+        case 'giangvien': 
+            header("Location: giangvien/quanlynganhangcauhoi.php");
+            break;
+        case 'thisinh': 
+            header("Location: thisinh/timkiemvathamgiathi.php");
+            break;
     }
     exit();
 }
 
 $error_message = "";
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $username = trim($_POST['username']);
-    $password = trim($_POST['password']);
+if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
-    try {
-        $db = Database::getConnection();
-        
-        $stmt = $db->prepare("SELECT * FROM nguoi_dung WHERE ten_dang_nhap = ? OR email = ?");
-        $stmt->execute([$username, $username]);
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    $username = trim($_POST['username'] ?? '');
+    $password = trim($_POST['password'] ?? '');
 
-        if ($user && (password_verify($password, $user['mat_khau']) || $password === $user['mat_khau'])) {
-            
-            $_SESSION['user'] = $user;
-            
-            $ma_vai_tro = $user['ma_vai_tro'];
-            if ($ma_vai_tro == 2) {
-                header("Location: giangvien/index.php");
-            } elseif ($ma_vai_tro == 3) {
-                header("Location: thisinh/timkiemvathamgiathi.php");
-            } elseif ($ma_vai_tro == 1) {
-                header("Location: admin/bangdieukhientongquan.php");
+    if ($username === '' || $password === '') {
+        $error_message = "Vui lòng nhập đầy đủ thông tin!";
+    } else {
+        try {
+            $conn = Database::getConnection();
+
+            // Truy vấn lấy dữ liệu user
+            $sql = "SELECT * FROM nguoi_dung 
+                    WHERE ten_dang_nhap = :username 
+                       OR email = :username LIMIT 1";
+
+            $stmt = $conn->prepare($sql);
+            $stmt->execute([':username' => $username]);
+
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$user) {
+                $error_message = "Tài khoản không tồn tại!";
             }
-            exit();
-        } else {
-            $error_message = "Tên đăng nhập, Email hoặc mật khẩu không đúng!";
+            elseif ($password !== $user['mat_khau']) {
+                $error_message = "Sai mật khẩu!";
+            }
+            elseif ($user['trang_thai'] !=='hoat_dong') {
+                $error_message = "Tài khoản đã bị khóa hoặc ngừng hoạt động!";
+            }
+            else {
+                // Đăng nhập thành công, tái tạo ID session để bảo mật
+                session_regenerate_id(true);
+
+                // Lưu thông tin cơ bản
+                $_SESSION['ma_nguoi_dung'] = $user['ma_nguoi_dung'];
+                $_SESSION['ho_ten'] = $user['ho_ten'];
+
+                // Dùng ma_vai_tro (1, 2, 3) để xét và chuyển trang
+                switch ($user['ma_vai_tro']) {
+                    case 1:
+                        $_SESSION['vai_tro'] = 'admin';
+                        header("Location: admin/bangdieukhientongquan.php");
+                        break;
+
+                    case 2:
+                        $_SESSION['vai_tro'] = 'giangvien';
+                        header("Location: giangvien/quanlynganhangcauhoi.php");
+                        break;
+
+                    case 3:
+                        $_SESSION['vai_tro'] = 'thisinh';
+                        // Định dạng lại mảng user để header.php của Thí sinh hiển thị Avatar và ID đẹp
+                        $_SESSION['user'] = [
+                            'ten' => $user['ho_ten'],
+                            'id' => '#' . str_pad($user['ma_nguoi_dung'], 5, "0", STR_PAD_LEFT),
+                            'avatar' => 'https://i.pravatar.cc/150?u=' . $user['ma_nguoi_dung'] 
+                        ];
+                        header("Location: thisinh/timkiemvathamgiathi.php");
+                        break;
+
+                    default:
+                        $error_message = "Vai trò không hợp lệ!";
+                        break;
+                }
+                exit();
+            }
+
+        } catch (PDOException $e) {
+            $error_message = "Lỗi hệ thống: " . $e->getMessage();
         }
-    } catch (PDOException $e) {
-        $error_message = "Lỗi kết nối Database. Vui lòng kiểm tra lại!";
     }
 }
-?>
 
+// Khai báo title cho trang
+$title = 'Đăng nhập - Hệ Thống Thi Trực Tuyến';
+?>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đăng nhập - Hệ thống thi trắc nghiệm</title>
-    <link rel="stylesheet" href="../asset/css/login.css">
     
-    <style>
-        .top-header {
-            position: absolute; top: 0; left: 0; width: 100%;
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 15px 40px; background: #fff; border-bottom: 1px solid #e2e8f0;
-            z-index: 10;
-        }
-        /* CSS CHO LOGO MỚI */
-        .logo-container { display: flex; align-items: center; gap: 12px; }
-        .logo-icon-bg {
-            position: relative; background-color: #2563eb; color: #ffffff;
-            display: flex; justify-content: center; align-items: center;
-            width: 35px; height: 35px; border-radius: 8px;
-        }
-        .logo-graduation-cap { font-size: 16px; z-index: 1; margin-top: -6px; }
-        .logo-book-pages {
-            position: absolute; bottom: 6px; width: 22px; height: 10px;
-            background-color: transparent; display: flex; justify-content: center; align-items: flex-end;
-        }
-        .logo-book-pages::before, .logo-book-pages::after {
-            content: ""; width: 10px; height: 8px; background-color: #ffffff;
-            border-radius: 2px; transform: rotate(-10deg); margin: 0 -1px;
-        }
-        .logo-book-pages::after { transform: rotate(10deg); }
-        .logo-text { color: #1a202c; font-weight: 800; font-size: 18px; }
+    <title><?php echo isset($title) ? $title : 'Hệ Thống Thi Trực Tuyến'; ?></title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="icon" type="image/png" href="../asset/images/favicon.png">
 
-        /* NÚT BẤM GÓC PHẢI */
-        .top-right-nav { display: flex; gap: 10px; }
-        .btn-nav-login { padding: 8px 15px; background: #f1f5f9; color: #4a5568; font-weight: bold; text-decoration: none; border-radius: 6px; }
-        .btn-nav-register { padding: 8px 15px; background: #2563eb; color: #ffffff; font-weight: bold; text-decoration: none; border-radius: 6px; }
-        
-        /* Chỉnh lại body để chừa chỗ cho Header */
-        body { padding-top: 80px; }
-        .header-logo { display: none; } /* Ẩn logo cũ của file login.css đi */
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .bg-gradient-blue { background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); }
     </style>
 </head>
 
-<body>
+<body class="min-h-screen flex flex-col">
 
-    <header class="top-header">
-        <div class="logo-container">
-            <div class="logo-icon-bg">
-                <span class="logo-graduation-cap">&#127891;</span>
-                <div class="logo-book-pages"></div>
+<header class="bg-white border-b border-gray-100 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+        <div class="flex items-center space-x-2 text-blue-700 font-bold text-lg">
+            <div class="bg-blue-600 text-white p-1.5 rounded-lg flex items-center justify-center">
+                <span class="material-icons" style="font-size: 20px;">school</span>
             </div>
-            <span class="logo-text">Hệ thống thi trắc nghiệm</span>
+            <span>Hệ Thống Thi Trực Tuyến</span>
         </div>
-        <div class="top-right-nav">
-            <a href="login.php" class="btn-nav-login">Đăng nhập</a>
-            <a href="register.php" class="btn-nav-register">Đăng ký</a>
-        </div>
-    </header>
+        <a href="register.php" class="text-sm text-blue-600 font-semibold hover:underline">
+            Đăng ký
+        </a>
+    </div>
+</header>
 
-    <div class="login-container">
-        <div class="left-col" style="background-color: #fff9ed;">
-            <div class="img-placeholder" style="background-color: #d6bc97;">📺 Hình minh họa</div>
-            <h2>Trải nghiệm học tập mới</h2>
-            <p>Hệ thống thi trắc nghiệm trực tuyến thông minh, giúp bạn đánh giá năng lực một cách chính xác nhất.</p>
+<main class="flex-grow flex items-center justify-center p-6">
+    <div class="max-w-5xl w-full bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col lg:flex-row">
+
+        <div class="lg:w-1/2 bg-gradient-blue p-10 text-white hidden lg:flex flex-col justify-center">
+            <h1 class="text-3xl font-extrabold mb-4">Chào mừng trở lại!</h1>
+            <p class="text-blue-100 text-sm mb-6">
+                Hệ thống thi trắc nghiệm trực tuyến thông minh giúp bạn đánh giá năng lực chính xác.
+            </p>
+
+            <div class="bg-white/10 p-6 rounded-2xl">
+                <img src="https://images.unsplash.com/photo-1510070112810-d4e9a46d9e91?auto=format&fit=crop&q=80&w=500"
+                     class="rounded-xl shadow-lg w-full h-48 object-cover mb-4" alt="">
+                <p class="text-xs text-center italic text-blue-100">
+                    "Học vấn là chìa khóa của tương lai"
+                </p>
+            </div>
         </div>
 
-        <div class="right-col">
-            <h1>Chào mừng trở lại</h1>
-            <p>Vui lòng nhập thông tin để tiếp tục bài thi của bạn</p>
+        <div class="lg:w-1/2 p-10 flex flex-col justify-center">
+
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Đăng nhập</h2>
 
             <?php if (!empty($error_message)): ?>
-                <div id="errorMsg" style="display: block;">
-                    <?php echo $error_message; ?>
+                <div class="mb-6 p-3 bg-red-50 border-l-4 border-red-500 text-red-700 text-sm rounded">
+                    ⚠️ <?php echo $error_message; ?>
                 </div>
-            <?php else: ?>
-                <div id="errorMsg"></div>
             <?php endif; ?>
 
-            <form action="" method="POST">
-                <div class="form-group">
-                    <label>Email hoặc Tên đăng nhập</label>
-                    <span class="form-icon">✉️</span>
-                    <input type="text" name="username" placeholder="Nhập tên đăng nhập (VD: giangvien)" required>
+            <form action="" method="POST" class="space-y-5">
+
+                <div>
+                    <label class="text-xs font-bold text-gray-400 uppercase">Tên đăng nhập / Email</label>
+                    <input type="text" name="username" required
+                           class="w-full mt-2 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                           placeholder="Nhập username hoặc email"
+                           value="<?php echo htmlspecialchars($_POST['username'] ?? ''); ?>">
                 </div>
 
-                <div class="form-group">
-                    <label>Mật khẩu</label>
-                    <a href="#" class="forgot-pw">Quên mật khẩu?</a>
-                    <span class="form-icon">🔒</span>
-                    <input type="password" name="password" placeholder="Nhập mật khẩu (VD: 123456)" required>
+                <div>
+                    <label class="text-xs font-bold text-gray-400 uppercase">Mật khẩu</label>
+                    <input type="password" name="password" required
+                           class="w-full mt-2 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                           placeholder="••••••••">
                 </div>
 
-                <div class="remember-me">
-                    <input type="checkbox" id="remember">
-                    <label for="remember">Ghi nhớ phiên đăng nhập</label>
+                <div class="flex items-center space-x-2">
+                    <input type="checkbox" id="remember" class="w-4 h-4">
+                    <label for="remember" class="text-sm text-gray-500">Ghi nhớ đăng nhập</label>
                 </div>
 
-                <button type="submit" class="btn-submit">Đăng nhập ngay →</button>
+                <button type="submit"
+                        class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition">
+                    Đăng nhập
+                </button>
+
             </form>
 
-            <div style="text-align: center; margin: 20px 0; color: #a0aec0; font-size: 12px; position: relative;">
-                HOẶC TIẾP TỤC VỚI
-            </div>
-            <div class="social-login">
-                <button class="btn-social">Google</button>
-                <button class="btn-social">Facebook</button>
+            <div class="mt-6 text-center text-sm text-gray-500">
+                Chưa có tài khoản?
+                <a href="register.php" class="text-blue-600 font-semibold hover:underline">
+                    Đăng ký ngay
+                </a>
             </div>
 
-            <p style="text-align: center; margin-top: 25px; margin-bottom: 0;">
-                Bạn là thành viên mới? <a href="register.php" style="color: #2563eb; font-weight: bold; text-decoration: none;">Tạo tài khoản miễn phí</a>
-            </p>
         </div>
     </div>
+</main>
+
+<footer class="text-center py-6 text-gray-400 text-xs">
+    © 2026 Hệ Thống Thi Trực Tuyến. All rights reserved.
+</footer>
 
 </body>
 </html>

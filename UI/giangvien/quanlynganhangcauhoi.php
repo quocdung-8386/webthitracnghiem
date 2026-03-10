@@ -7,6 +7,7 @@ if (!isset($_SESSION['user']) || $_SESSION['user']['ma_vai_tro'] != 2) {
     header("Location: ?url=login");
     exit();
 }
+
 ?>
 <!DOCTYPE html>
 <html lang="vi">

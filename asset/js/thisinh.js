@@ -45,19 +45,30 @@ document.addEventListener('DOMContentLoaded', function() {
     const formPhucKhao = document.getElementById('formPhucKhao');
 
     if (uploadArea && fileInput) {
+        // Mở hộp thoại chọn file khi click vào vùng upload
         uploadArea.addEventListener('click', () => fileInput.click());
         
+        // BỔ SUNG: Hiển thị tên file khi người dùng Click chọn file bình thường
+        fileInput.addEventListener('change', function() {
+            if (this.files && this.files.length > 0) {
+                uploadArea.querySelector('.upload-text').innerHTML = `Đã chọn: <span style="color: var(--primary); font-weight: bold;">${this.files[0].name}</span>`;
+            }
+        });
+
+        // Hiệu ứng Kéo thả (Drag & Drop)
         uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault(); uploadArea.classList.add('dragover');
+            e.preventDefault(); 
+            uploadArea.classList.add('dragover');
         });
         
         uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
         
         uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault(); uploadArea.classList.remove('dragover');
+            e.preventDefault(); 
+            uploadArea.classList.remove('dragover');
             if (e.dataTransfer.files.length > 0) {
                 fileInput.files = e.dataTransfer.files;
-                uploadArea.querySelector('.upload-text').innerHTML = `Đã chọn: <span style="color: blue">${e.dataTransfer.files[0].name}</span>`;
+                uploadArea.querySelector('.upload-text').innerHTML = `Đã chọn: <span style="color: var(--primary); font-weight: bold;">${e.dataTransfer.files[0].name}</span>`;
             }
         });
 
@@ -70,7 +81,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ---------------------------------------------------------
-    // 4. DÀNH CHO TRANG KẾT QUẢ & CHUNG (xemketqua.php)
+    // 4. DÀNH CHO TRANG KẾT QUẢ & CHUNG (xemketqua.php, header.php)
     // ---------------------------------------------------------
     const btnExport = document.getElementById('btnExportPDF');
     if (btnExport) {
@@ -80,18 +91,20 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Tính năng Dark Mode dùng chung (Nút chuyển nằm ở footer trang kết quả hoặc navbar)
+    // Tính năng Dark Mode dùng chung
     const btnTheme = document.getElementById('btnToggleTheme');
     if (btnTheme) {
         // Kiểm tra cache xem user đã chọn dark mode chưa
         if (localStorage.getItem('theme') === 'dark') {
             document.body.classList.add('dark-mode');
+            btnTheme.innerText = 'light_mode';
         }
 
         btnTheme.addEventListener('click', function() {
             document.body.classList.toggle('dark-mode');
             const isDark = document.body.classList.contains('dark-mode');
             localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            btnTheme.innerText = isDark ? 'light_mode' : 'dark_mode'; 
         });
     }
 });
