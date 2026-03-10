@@ -16,13 +16,13 @@ $db = Database::getConnection();
 $ma_giao_vien = $_SESSION['ma_nguoi_dung'] ?? $_SESSION['user']['ma_nguoi_dung'];
 $ho_ten_gv = $_SESSION['ho_ten'] ?? $_SESSION['user']['ho_ten'] ?? 'Giảng viên';
 
-$stmt1 = $db->prepare("SELECT COUNT(*) as total FROM cau_hoi WHERE ma_giao_vien = ?");
-$stmt1->execute([$ma_giao_vien]);
-$tongCauHoi = $stmt1->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+    $stmt1 = $db->prepare("SELECT COUNT(*) as total FROM cau_hoi WHERE ma_giao_vien = ?");
+    $stmt1->execute([$ma_giao_vien]);
+    $tongCauHoi = $stmt1->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
 
-$stmt2 = $db->prepare("SELECT COUNT(*) as total FROM de_thi WHERE ma_giao_vien = ?");
-$stmt2->execute([$ma_giao_vien]);
-$tongDeThi = $stmt2->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+    $stmt2 = $db->prepare("SELECT COUNT(*) as total FROM de_thi WHERE ma_giao_vien = ?");
+    $stmt2->execute([$ma_giao_vien]);
+    $tongDeThi = $stmt2->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
 
 // Đếm số bài làm đã nộp (chờ chấm)
 $stmt3 = $db->prepare("
