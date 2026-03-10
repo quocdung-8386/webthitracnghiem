@@ -5,7 +5,7 @@ class Database {
     public static function getConnection() {
         if (self::$instance == null) {
             self::$instance = new PDO(
-                "mysql:host=localhost;dbname=he_thong_thi_truc_tuyen;charset=utf8mb4",
+                "mysql:host=localhost;dbname=he_thong_thi_trac_nghiem;charset=utf8mb4",
                 "root",
                 ""
             );

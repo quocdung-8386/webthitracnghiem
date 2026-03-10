@@ -1,81 +1,119 @@
 <?php
 session_start();
 
-if (isset($_SESSION['vai_tro']) && $_SESSION['vai_tro'] === 'giangvien') {
-    header("Location: giangvien/quanlynganhangcauhoi.php");
+require_once '../app/config/Database.php';
+
+if (isset($_SESSION['user'])) {
+    $ma_vai_tro = $_SESSION['user']['ma_vai_tro'];
+    if ($ma_vai_tro == 2) {
+        header("Location: giangvien/index.php");
+    } elseif ($ma_vai_tro == 3) {
+        header("Location: thisinh/timkiemvathamgiathi.php");
+    } elseif ($ma_vai_tro == 1) {
+        header("Location: admin/bangdieukhientongquan.php");
+    }
     exit();
 }
 
 $error_message = "";
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-
     $username = trim($_POST['username']);
     $password = trim($_POST['password']);
 
-    // --- DỮ LIỆU GIẢ ĐĂNG NHẬP ---
-    if ($username === 'giangvien' && $password === '123456') {
-        $_SESSION['vai_tro'] = 'giangvien';
-        $_SESSION['ho_ten'] = 'GV. Nguyễn Văn A';
+    try {
+        $db = Database::getConnection();
+        
+        $stmt = $db->prepare("SELECT * FROM nguoi_dung WHERE ten_dang_nhap = ? OR email = ?");
+        $stmt->execute([$username, $username]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        // ĐỔI DÒNG NÀY: Trỏ về index.php (Trang Dashboard mới)
-        header("Location: giangvien/index.php");
-        exit();
-    }
-    // Trường hợp sai tài khoản/mật khẩu
-    else {
-        $error_message = "Tên đăng nhập hoặc mật khẩu không đúng!";
+        if ($user && (password_verify($password, $user['mat_khau']) || $password === $user['mat_khau'])) {
+            
+            $_SESSION['user'] = $user;
+            
+            $ma_vai_tro = $user['ma_vai_tro'];
+            if ($ma_vai_tro == 2) {
+                header("Location: giangvien/index.php");
+            } elseif ($ma_vai_tro == 3) {
+                header("Location: thisinh/timkiemvathamgiathi.php");
+            } elseif ($ma_vai_tro == 1) {
+                header("Location: admin/bangdieukhientongquan.php");
+            }
+            exit();
+        } else {
+            $error_message = "Tên đăng nhập, Email hoặc mật khẩu không đúng!";
+        }
+    } catch (PDOException $e) {
+        $error_message = "Lỗi kết nối Database. Vui lòng kiểm tra lại!";
     }
 }
- if ($username === 'thisinh' && $password === '123456') {
-        
-        $_SESSION['vai_tro'] = 'thisinh';
-        $_SESSION['ho_ten'] = 'TS. Trần Thị B';
-        
-        // Đăng nhập thành công -> Chuyển hướng
-        header("Location: thisinh/timkiemvathamgiathi.php");
-        exit();
-    }
-    // Trường hợp sai tài khoản/mật khẩu
-    else {
-        $error_message = "Tên đăng nhập hoặc mật khẩu không đúng!";
-    }
-    if ($username === 'admin' && $password === '123456') {
-        
-        $_SESSION['vai_tro'] = 'admin';
-        $_SESSION['ho_ten'] = 'Admin. Phạm Văn C';
-        
-        // Đăng nhập thành công -> Chuyển hướng
-        header("Location: admin/bangdieukhientongquan.php");
-        exit();
-    }
-    // Trường hợp sai tài khoản/mật khẩu
-    else {
-        $error_message = "Tên đăng nhập hoặc mật khẩu không đúng!";
-    }
-
 ?>
 
 <!DOCTYPE html>
 <html lang="vi">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đăng nhập - EduQuiz</title>
+    <title>Đăng nhập - Hệ thống thi trắc nghiệm</title>
     <link rel="stylesheet" href="../asset/css/login.css">
+    
+    <style>
+        .top-header {
+            position: absolute; top: 0; left: 0; width: 100%;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 15px 40px; background: #fff; border-bottom: 1px solid #e2e8f0;
+            z-index: 10;
+        }
+        /* CSS CHO LOGO MỚI */
+        .logo-container { display: flex; align-items: center; gap: 12px; }
+        .logo-icon-bg {
+            position: relative; background-color: #2563eb; color: #ffffff;
+            display: flex; justify-content: center; align-items: center;
+            width: 35px; height: 35px; border-radius: 8px;
+        }
+        .logo-graduation-cap { font-size: 16px; z-index: 1; margin-top: -6px; }
+        .logo-book-pages {
+            position: absolute; bottom: 6px; width: 22px; height: 10px;
+            background-color: transparent; display: flex; justify-content: center; align-items: flex-end;
+        }
+        .logo-book-pages::before, .logo-book-pages::after {
+            content: ""; width: 10px; height: 8px; background-color: #ffffff;
+            border-radius: 2px; transform: rotate(-10deg); margin: 0 -1px;
+        }
+        .logo-book-pages::after { transform: rotate(10deg); }
+        .logo-text { color: #1a202c; font-weight: 800; font-size: 18px; }
+
+        /* NÚT BẤM GÓC PHẢI */
+        .top-right-nav { display: flex; gap: 10px; }
+        .btn-nav-login { padding: 8px 15px; background: #f1f5f9; color: #4a5568; font-weight: bold; text-decoration: none; border-radius: 6px; }
+        .btn-nav-register { padding: 8px 15px; background: #2563eb; color: #ffffff; font-weight: bold; text-decoration: none; border-radius: 6px; }
+        
+        /* Chỉnh lại body để chừa chỗ cho Header */
+        body { padding-top: 80px; }
+        .header-logo { display: none; } /* Ẩn logo cũ của file login.css đi */
+    </style>
 </head>
 
 <body>
 
-    <div class="header-logo">🎓 EduQuiz</div>
-    <div class="top-right-nav">
-        Đăng nhập <a href="register.php" class="btn-register-top">Đăng ký</a>
-    </div>
+    <header class="top-header">
+        <div class="logo-container">
+            <div class="logo-icon-bg">
+                <span class="logo-graduation-cap">&#127891;</span>
+                <div class="logo-book-pages"></div>
+            </div>
+            <span class="logo-text">Hệ thống thi trắc nghiệm</span>
+        </div>
+        <div class="top-right-nav">
+            <a href="login.php" class="btn-nav-login">Đăng nhập</a>
+            <a href="register.php" class="btn-nav-register">Đăng ký</a>
+        </div>
+    </header>
 
     <div class="login-container">
-        <div class="left-col">
-            <div class="img-placeholder">📺 Hình minh họa</div>
+        <div class="left-col" style="background-color: #fff9ed;">
+            <div class="img-placeholder" style="background-color: #d6bc97;">📺 Hình minh họa</div>
             <h2>Trải nghiệm học tập mới</h2>
             <p>Hệ thống thi trắc nghiệm trực tuyến thông minh, giúp bạn đánh giá năng lực một cách chính xác nhất.</p>
         </div>
@@ -123,11 +161,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             </div>
 
             <p style="text-align: center; margin-top: 25px; margin-bottom: 0;">
-                Bạn là thành viên mới? <a href="register.php"
-                    style="color: #2563eb; font-weight: bold; text-decoration: none;">Tạo tài khoản miễn phí</a>
+                Bạn là thành viên mới? <a href="register.php" style="color: #2563eb; font-weight: bold; text-decoration: none;">Tạo tài khoản miễn phí</a>
             </p>
         </div>
     </div>
-</body>
 
+</body>
 </html>

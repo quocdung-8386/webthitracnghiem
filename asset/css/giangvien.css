@@ -30,8 +30,66 @@ body { background-color: #f5f7fa; color: #333; }
     background-color: #f8fafc;
     min-height: 100vh;
 }
+.logo-container {
+    display: flex;
+    align-items: center;
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; /* Phông chữ sans-serif sạch sẽ */
+    gap: 12px;
+    padding: 10px;
+    background-color: #ffffff; /* Nền trắng như trong hình */
+}
 
-.logo { padding: 20px; color: #1e40af; border-bottom: 1px solid #e2e8f0; }
+.logo-icon-bg {
+    position: relative;
+    background-color: #0056d2; /* Màu xanh lam đậm hơn */
+    color: #ffffff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 10px; /* Bo góc nhẹ */
+}
+
+.logo-graduation-cap {
+    font-size: 20px;
+    z-index: 1;
+    margin-top: -8px; /* Nâng chiếc mũ lên một chút */
+}
+
+.logo-book-pages {
+    position: absolute;
+    bottom: 8px;
+    width: 28px;
+    height: 12px;
+    background-color: transparent;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+}
+
+.logo-book-pages::before,
+.logo-book-pages::after {
+    content: "";
+    width: 12px;
+    height: 10px;
+    background-color: #ffffff;
+    border-radius: 2px;
+    transform: rotate(-10deg); /* Trang bên trái nghiêng xuống */
+    margin: 0 -1px;
+}
+
+.logo-book-pages::after {
+    transform: rotate(10deg); /* Trang bên phải nghiêng xuống */
+}
+
+.logo-text {
+    color: #0d0d0d; /* Màu đen/xám rất đậm */
+    font-weight: 700; /* Phông chữ hơi đậm */
+    font-size: 20px;
+    letter-spacing: -0.5px; /* Điều chỉnh khoảng cách chữ */
+}
+
 .nav-menu { list-style: none; flex: 1; padding-top: 20px; }
 .nav-menu li a {
     display: block; padding: 15px 20px; text-decoration: none;
@@ -301,3 +359,63 @@ input:checked + .slider:before { transform: translateX(20px); }
 .bar:hover { opacity: 0.8; }
 .bar.active { background: #007bff; } /* Cột màu xanh */
 .bar span { position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%); font-size: 11px; color: #718096; width: 100%; text-align: center;}
+.sidebar .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 20px 20px 10px 20px;
+    margin-bottom: 20px;
+    text-decoration: none; /* Nếu cậu bọc thẻ a */
+}
+
+.logo-icon-bg {
+    position: relative;
+    background-color: #2563eb;
+    color: #ffffff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 35px;
+    height: 35px;
+    border-radius: 8px;
+    flex-shrink: 0; /* Tránh icon bị méo khi sidebar thu hẹp */
+}
+
+.logo-graduation-cap {
+    font-size: 16px;
+    z-index: 1;
+    margin-top: -6px;
+}
+
+.logo-book-pages {
+    position: absolute;
+    bottom: 6px;
+    width: 22px;
+    height: 10px;
+    background-color: transparent;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+}
+
+.logo-book-pages::before,
+.logo-book-pages::after {
+    content: "";
+    width: 10px;
+    height: 8px;
+    background-color: #ffffff;
+    border-radius: 2px;
+    transform: rotate(-10deg);
+    margin: 0 -1px;
+}
+
+.logo-book-pages::after {
+    transform: rotate(10deg);
+}
+
+.sidebar .logo-text {
+    color: #1a202c;
+    font-weight: 800;
+    font-size: 15px; /* Chữ nhỏ hơn trang login một chút để vừa sidebar */
+    line-height: 1.3;
+}

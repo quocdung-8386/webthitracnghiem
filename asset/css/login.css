@@ -67,4 +67,62 @@ body { background-color: #f4f7f6; display: flex; justify-content: center; align-
 
 /* Thông báo thành công */
 #successMsg { display: none; background: #c6f6d5; color: #276749; padding: 10px; border-radius: 6px; font-size: 13px; margin-bottom: 20px; font-weight: bold; text-align: center;}
+.logo-container {
+    display: flex;
+    align-items: center;
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; /* Phông chữ sans-serif sạch sẽ */
+    gap: 12px;
+    padding: 10px;
+    background-color: #ffffff; /* Nền trắng như trong hình */
+}
 
+.logo-icon-bg {
+    position: relative;
+    background-color: #0056d2; /* Màu xanh lam đậm hơn */
+    color: #ffffff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 10px; /* Bo góc nhẹ */
+}
+
+.logo-graduation-cap {
+    font-size: 20px;
+    z-index: 1;
+    margin-top: -8px; /* Nâng chiếc mũ lên một chút */
+}
+
+.logo-book-pages {
+    position: absolute;
+    bottom: 8px;
+    width: 28px;
+    height: 12px;
+    background-color: transparent;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+}
+
+.logo-book-pages::before,
+.logo-book-pages::after {
+    content: "";
+    width: 12px;
+    height: 10px;
+    background-color: #ffffff;
+    border-radius: 2px;
+    transform: rotate(-10deg); /* Trang bên trái nghiêng xuống */
+    margin: 0 -1px;
+}
+
+.logo-book-pages::after {
+    transform: rotate(10deg); /* Trang bên phải nghiêng xuống */
+}
+
+.logo-text {
+    color: #0d0d0d; /* Màu đen/xám rất đậm */
+    font-weight: 700; /* Phông chữ hơi đậm */
+    font-size: 20px;
+    letter-spacing: -0.5px; /* Điều chỉnh khoảng cách chữ */
+}

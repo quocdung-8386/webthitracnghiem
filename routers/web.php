@@ -32,6 +32,10 @@ switch ($url) {
         (new GiangVienController())->dashboard();
         break;
 
+    case 'giangvien/cauhoi':
+        (new GiangVienController())->quanLyCauHoi();
+        break;
+
     case 'thisinh':
         (new ThiSinhController())->dashboard();
         break;
