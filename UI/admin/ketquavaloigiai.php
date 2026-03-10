@@ -3,69 +3,258 @@
 $title = "Kết quả & Lời giải - Hệ Thống Thi Trực Tuyến";
 $active_menu = "results"; // Biến này dùng để làm sáng menu "Kết quả & Lời giải" trong Sidebar
 
-// Dữ liệu mô phỏng danh sách kết quả thi
-$results = [
-    [
-        'id' => 'SV2023001',
-        'name' => 'Nguyễn Văn An',
-        'avatar' => 'NA',
-        'avatar_bg' => 'bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400',
-        'exam' => 'Thi giữa kỳ I - Toán cao cấp',
-        'score' => '8.5',
+// Kết nối database
+require_once __DIR__ . '/../../app/config/Database.php';
+$conn = Database::getConnection();
+
+// Xử lý filter và search từ GET parameters
+$search = isset($_GET['search']) ? trim($_GET['search']) : '';
+$ma_mon_hoc = isset($_GET['ma_mon']) ? $_GET['ma_mon'] : '';
+$ma_ky_thi = isset($_GET['ma_ky_thi']) ? $_GET['ma_ky_thi'] : '';
+
+// Phân trang
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$limit = 3; // Số dòng mỗi trang (đúng với JavaScript client-side)
+$offset = ($page - 1) * $limit;
+
+// Lấy danh sách môn học (từ de_thi)
+$subjectsStmt = $conn->query("
+    SELECT DISTINCT dt.ma_de_thi, dt.tieu_de 
+    FROM de_thi dt
+    ORDER BY dt.tieu_de ASC
+");
+$subjects = $subjectsStmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Lấy danh sách kỳ thi (từ ca_thi + de_thi)
+$examsStmt = $conn->query("
+    SELECT ct.ma_ca_thi, dt.tieu_de, ct.thoi_gian_bat_dau
+    FROM ca_thi ct
+    JOIN de_thi dt ON ct.ma_de_thi = dt.ma_de_thi
+    ORDER BY ct.thoi_gian_bat_dau DESC
+    LIMIT 50
+");
+$examSessions = $examsStmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Đếm tổng số kết quả (với điều kiện lọc)
+// JOIN đúng các bảng: bai_lam, nguoi_dung, vai_tro, ca_thi, de_thi
+// Chỉ lấy dữ liệu của role: ten_vai_tro = 'thi_sinh'
+// Chỉ hiển thị các bài có trang_thai: 'da_nop', 'da_cham'
+$countSql = "
+    SELECT COUNT(*) 
+    FROM bai_lam bl
+    INNER JOIN nguoi_dung nd ON bl.ma_nguoi_dung = nd.ma_nguoi_dung
+    INNER JOIN vai_tro vt ON nd.ma_vai_tro = vt.ma_vai_tro
+    INNER JOIN ca_thi ct ON bl.ma_ca_thi = ct.ma_ca_thi
+    INNER JOIN de_thi dt ON ct.ma_de_thi = dt.ma_de_thi
+    WHERE vt.ten_vai_tro = 'thi_sinh'
+    AND bl.trang_thai IN ('da_nop', 'da_cham')
+";
+
+$params = [];
+if (!empty($search)) {
+    $countSql .= " AND (nd.ho_ten LIKE ? OR nd.ten_dang_nhap LIKE ?)";
+    $params[] = "%$search%";
+    $params[] = "%$search%";
+}
+if (!empty($ma_mon_hoc)) {
+    $countSql .= " AND dt.ma_de_thi = ?";
+    $params[] = $ma_mon_hoc;
+}
+if (!empty($ma_ky_thi)) {
+    $countSql .= " AND ct.ma_ca_thi = ?";
+    $params[] = $ma_ky_thi;
+}
+
+$countStmt = $conn->prepare($countSql);
+$countStmt->execute($params);
+$totalRecords = $countStmt->fetchColumn();
+$totalPages = ceil($totalRecords / $limit);
+
+// Lấy dữ liệu kết quả thi với JOIN đúng các bảng
+// Sửa tên cột: diem_so → tong_diem, thoi_gian_thi → thoi_gian_lam
+// Sửa tên cột: thoi_gian_bat_dau → thoi_diem_bat_dau, thoi_gian_nop → thoi_diem_nop
+$sql = "
+    SELECT 
+        bl.ma_bai_lam,
+        nd.ma_nguoi_dung,
+        nd.ten_dang_nhap,
+        nd.ho_ten,
+        dt.ma_de_thi,
+        dt.tieu_de as ten_de_thi,
+        dt.thoi_gian_lam,
+        ct.ma_ca_thi,
+        bl.tong_diem,
+        bl.thoi_diem_bat_dau,
+        bl.thoi_diem_nop,
+        bl.trang_thai
+    FROM bai_lam bl
+    INNER JOIN nguoi_dung nd ON bl.ma_nguoi_dung = nd.ma_nguoi_dung
+    INNER JOIN vai_tro vt ON nd.ma_vai_tro = vt.ma_vai_tro
+    INNER JOIN ca_thi ct ON bl.ma_ca_thi = ct.ma_ca_thi
+    INNER JOIN de_thi dt ON ct.ma_de_thi = dt.ma_de_thi
+    WHERE vt.ten_vai_tro = 'thi_sinh'
+    AND bl.trang_thai IN ('da_nop', 'da_cham')
+";
+
+if (!empty($search)) {
+    $sql .= " AND (nd.ho_ten LIKE ? OR nd.ten_dang_nhap LIKE ?)";
+}
+if (!empty($ma_mon_hoc)) {
+    $sql .= " AND dt.ma_de_thi = ?";
+}
+if (!empty($ma_ky_thi)) {
+    $sql .= " AND ct.ma_ca_thi = ?";
+}
+
+$sql .= " ORDER BY bl.thoi_diem_nop DESC LIMIT $limit OFFSET $offset";
+
+$stmt = $conn->prepare($sql);
+$stmt->execute($params);
+$resultsData = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Xử lý dữ liệu để hiển thị
+$results = [];
+$passScore = 5.0; // Điểm để đạt (pass)
+
+foreach ($resultsData as $row) {
+    // Tính thời gian làm bài: thoi_diem_nop - thoi_diem_bat_dau
+    // Hiển thị dạng: mm:ss
+    $startTime = strtotime($row['thoi_diem_bat_dau']);
+    $endTime = strtotime($row['thoi_diem_nop']);
+    $timeSpentSeconds = $endTime - $startTime;
+    $timeSpent = floor($timeSpentSeconds / 60) . ':' . str_pad($timeSpentSeconds % 60, 2, '0', STR_PAD_LEFT);
+    
+    // Thời gian thi tối đa (phút)
+    $timeTotal = $row['thoi_gian_lam'] ? $row['thoi_gian_lam'] : 60;
+    
+    // Xác định trạng thái pass/fail
+    // >= 5 → Đạt, < 5 → Trượt
+    $score = (float)$row['tong_diem'];
+    $statusType = ($score >= $passScore) ? 'pass' : 'fail';
+    
+    // Tạo avatar từ họ tên: Nguyễn Văn An → NA
+    $nameParts = explode(' ', $row['ho_ten']);
+    $avatar = count($nameParts) >= 2 
+        ? strtoupper(substr($nameParts[0], 0, 1) . end($nameParts)) 
+        : strtoupper(substr($row['ho_ten'], 0, 2));
+    
+    // Màu avatar ngẫu nhiên nhưng cố định theo tên
+    $avatarColors = [
+        ['bg-blue-100 text-blue-600', 'dark:bg-blue-900/50 dark:text-blue-400'],
+        ['bg-orange-100 text-orange-600', 'dark:bg-orange-900/50 dark:text-orange-400'],
+        ['bg-emerald-100 text-emerald-600', 'dark:bg-emerald-900/50 dark:text-emerald-400'],
+        ['bg-purple-100 text-purple-600', 'dark:bg-purple-900/50 dark:text-purple-400'],
+        ['bg-rose-100 text-rose-600', 'dark:bg-rose-900/50 dark:text-rose-400'],
+        ['bg-cyan-100 text-cyan-600', 'dark:bg-cyan-900/50 dark:text-cyan-400'],
+    ];
+    $colorIndex = array_sum(array_map('ord', str_split($row['ho_ten']))) % count($avatarColors);
+    $avatarBg = $avatarColors[$colorIndex][0];
+    $avatarBgDark = $avatarColors[$colorIndex][1];
+    
+    $results[] = [
+        'id' => $row['ma_nguoi_dung'],
+        'ten_dang_nhap' => $row['ten_dang_nhap'],
+        'name' => $row['ho_ten'],
+        'avatar' => $avatar,
+        'avatar_bg' => $avatarBg,
+        'avatar_bg_dark' => $avatarBgDark,
+        'exam' => $row['ten_de_thi'],
+        'score' => number_format($score, 1),
         'total_score' => '10.0',
-        'time_spent' => '45:20',
-        'time_total' => '60:00',
-        'status_type' => 'pass'
-    ],
-    [
-        'id' => 'SV2023042',
-        'name' => 'Trần Thị Hoa',
-        'avatar' => 'TH',
-        'avatar_bg' => 'bg-orange-100 text-orange-600 dark:bg-orange-900/50 dark:text-orange-400',
-        'exam' => 'Lập trình hướng đối tượng',
-        'score' => '4.0',
-        'total_score' => '10.0',
-        'time_spent' => '58:12',
-        'time_total' => '60:00',
-        'status_type' => 'fail'
-    ],
-    [
-        'id' => 'SV2023115',
-        'name' => 'Lê Hoàng Minh',
-        'avatar' => 'LM',
-        'avatar_bg' => 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300',
-        'exam' => 'Thi kết thúc học phần - CSDL',
-        'score' => '9.2',
-        'total_score' => '10.0',
-        'time_spent' => '32:45',
-        'time_total' => '90:00',
-        'status_type' => 'pass'
-    ],
-    [
-        'id' => 'SV2023204',
-        'name' => 'Phạm Anh Tuấn',
-        'avatar' => 'PT',
-        'avatar_bg' => 'bg-purple-100 text-purple-600 dark:bg-purple-900/50 dark:text-purple-400',
-        'exam' => 'Tiếng Anh chuyên ngành',
-        'score' => '7.8',
-        'total_score' => '10.0',
-        'time_spent' => '40:00',
-        'time_total' => '45:00',
-        'status_type' => 'pass'
-    ],
-    [
-        'id' => 'SV2023088',
-        'name' => 'Bùi Ngọc Chi',
-        'avatar' => 'BC',
-        'avatar_bg' => 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400',
-        'exam' => 'Toán học cao cấp',
-        'score' => '2.5',
-        'total_score' => '10.0',
-        'time_spent' => '15:10',
-        'time_total' => '60:00',
-        'status_type' => 'fail'
-    ],
-];
+        'time_spent' => $timeSpent,
+        'time_total' => $timeTotal . ':00',
+        'status_type' => $statusType,
+        'ma_bai_lam' => $row['ma_bai_lam'],
+        'thoi_diem_bat_dau' => $row['thoi_diem_bat_dau'],
+        'thoi_diem_nop' => $row['thoi_diem_nop']
+    ];
+}
+
+// Xử lý Export CSV
+// Sử dụng prepared statement để chống SQL injection
+if (isset($_GET['export']) && $_GET['export'] === 'csv') {
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="ket_qua_thi_' . date('Ymd_His') . '.csv"');
+    
+    $output = fopen('php://output', 'w');
+    
+    // BOM for UTF-8
+    fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+    
+    // Header: mã thí sinh, tên đăng nhập, họ tên, tên đề thi, thời gian làm bài, điểm, thời gian bắt đầu, thời gian nộp, trạng thái
+    fputcsv($output, ['Mã thí sinh', 'Tên đăng nhập', 'Họ tên', 'Tên đề thi', 'Thời gian làm bài', 'Điểm', 'Thời gian bắt đầu', 'Thời gian nộp', 'Trạng thái']);
+    
+    // Get all data without pagination for export
+    // Sử dụng prepared statement
+    $exportSql = "
+        SELECT 
+            nd.ma_nguoi_dung,
+            nd.ten_dang_nhap,
+            nd.ho_ten,
+            dt.tieu_de,
+            bl.tong_diem,
+            bl.thoi_diem_bat_dau,
+            bl.thoi_diem_nop,
+            bl.trang_thai
+        FROM bai_lam bl
+        INNER JOIN nguoi_dung nd ON bl.ma_nguoi_dung = nd.ma_nguoi_dung
+        INNER JOIN vai_tro vt ON nd.ma_vai_tro = vt.ma_vai_tro
+        INNER JOIN ca_thi ct ON bl.ma_ca_thi = ct.ma_ca_thi
+        INNER JOIN de_thi dt ON ct.ma_de_thi = dt.ma_de_thi
+        WHERE vt.ten_vai_tro = 'thi_sinh'
+        AND bl.trang_thai IN ('da_nop', 'da_cham')
+    ";
+    
+    $exportParams = [];
+    
+    if (!empty($search)) {
+        $exportSql .= " AND (nd.ho_ten LIKE ? OR nd.ten_dang_nhap LIKE ?)";
+        $exportParams[] = "%$search%";
+        $exportParams[] = "%$search%";
+    }
+    if (!empty($ma_mon_hoc)) {
+        $exportSql .= " AND dt.ma_de_thi = ?";
+        $exportParams[] = $ma_mon_hoc;
+    }
+    if (!empty($ma_ky_thi)) {
+        $exportSql .= " AND ct.ma_ca_thi = ?";
+        $exportParams[] = $ma_ky_thi;
+    }
+    
+    $exportSql .= " ORDER BY bl.thoi_diem_nop DESC";
+    
+    $exportStmt = $conn->prepare($exportSql);
+    $exportStmt->execute($exportParams);
+    $exportData = $exportStmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    foreach ($exportData as $row) {
+        // Tính thời gian làm bài: thoi_diem_nop - thoi_diem_bat_dau
+        $timeSpentSec = strtotime($row['thoi_diem_nop']) - strtotime($row['thoi_diem_bat_dau']);
+        $timeSpent = floor($timeSpentSec / 60) . ' phút ' . ($timeSpentSec % 60) . ' giây';
+        
+        // Xác định trạng thái: >= 5 → Đạt, < 5 → Trượt
+        $status = ($row['tong_diem'] >= $passScore) ? 'Đạt' : 'Trượt';
+        
+        // Format thời gian
+        $thoi_gian_bat_dau = date('d/m/Y H:i:s', strtotime($row['thoi_diem_bat_dau']));
+        $thoi_gian_nop = date('d/m/Y H:i:s', strtotime($row['thoi_diem_nop']));
+        
+        fputcsv($output, [
+            $row['ma_nguoi_dung'],
+            $row['ten_dang_nhap'],
+            $row['ho_ten'],
+            $row['tieu_de'],
+            $timeSpent,
+            number_format($row['tong_diem'], 1),
+            $thoi_gian_bat_dau,
+            $thoi_gian_nop,
+            $status
+        ]);
+    }
+    
+    fclose($output);
+    exit;
+}
 
 // Nhúng Header và Sidebar
 include 'components/header.php';
@@ -140,9 +329,15 @@ include 'components/sidebar.php';
                         <div class="relative w-1/2">
                             <span
                                 class="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">library_books</span>
-                            <select
-                                class="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-600 dark:text-slate-300 focus:outline-none focus:border-[#254ada] appearance-none cursor-pointer transition">
-                                <option>Tất cả Môn học</option>
+                            <select id="subjectFilter"
+                                class="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-600 dark:text-slate-300 focus:outline-none focus:border-[#254ada] appearance-none cursor-pointer transition"
+                                onchange="applyFilters()">
+                                <option value="">Tất cả Môn học</option>
+                                <?php foreach ($subjects as $subject): ?>
+                                    <option value="<?php echo $subject['ma_de_thi']; ?>" <?php echo ($ma_mon_hoc == $subject['ma_de_thi']) ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($subject['tieu_de']); ?>
+                                    </option>
+                                <?php endforeach; ?>
                             </select>
                             <span
                                 class="material-icons absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">expand_more</span>
@@ -150,9 +345,15 @@ include 'components/sidebar.php';
                         <div class="relative w-1/2">
                             <span
                                 class="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">assignment</span>
-                            <select
-                                class="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-600 dark:text-slate-300 focus:outline-none focus:border-[#254ada] appearance-none cursor-pointer transition">
-                                <option>Tất cả Kỳ thi</option>
+                            <select id="examFilter"
+                                class="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-600 dark:text-slate-300 focus:outline-none focus:border-[#254ada] appearance-none cursor-pointer transition"
+                                onchange="applyFilters()">
+                                <option value="">Tất cả Kỳ thi</option>
+                                <?php foreach ($examSessions as $exam): ?>
+                                    <option value="<?php echo $exam['ma_ca_thi']; ?>" <?php echo ($ma_ky_thi == $exam['ma_ca_thi']) ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($exam['tieu_de']); ?> (<?php echo date('d/m/Y', strtotime($exam['thoi_gian_bat_dau'])); ?>)
+                                    </option>
+                                <?php endforeach; ?>
                             </select>
                             <span
                                 class="material-icons absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">expand_more</span>
@@ -163,6 +364,7 @@ include 'components/sidebar.php';
                         <span
                             class="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
                         <input type="text" id="searchInput" placeholder="Tìm theo mã hoặc tên thí sinh..."
+                            value="<?php echo htmlspecialchars($search); ?>"
                             class="w-full pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-lg text-sm text-slate-800 dark:text-white focus:outline-none focus:border-[#254ada] transition">
                     </div>
                 </div>
@@ -188,75 +390,84 @@ include 'components/sidebar.php';
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-700" id="tableBody">
-                        <?php foreach ($results as $res): ?>
-                            <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-700/50 transition result-row">
+                        <?php if (count($results) > 0): ?>
+                            <?php foreach ($results as $res): ?>
+                                <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-700/50 transition result-row">
 
-                                <td class="px-6 py-4 font-bold text-[#1e3bb3] dark:text-[#4b6bfb] text-[13px] r-id">
-                                    <?php echo $res['id']; ?></td>
+                                    <td class="px-6 py-4 font-bold text-[#1e3bb3] dark:text-[#4b6bfb] text-[13px] r-id">
+                                        <?php echo htmlspecialchars($res['id']); ?></td>
 
-                                <td class="px-6 py-4 flex items-center gap-3">
-                                    <div
-                                        class="w-9 h-9 rounded-full <?php echo $res['avatar_bg']; ?> flex items-center justify-center font-bold text-[12px] border border-white dark:border-slate-700">
-                                        <?php echo $res['avatar']; ?>
-                                    </div>
-                                    <div class="font-bold text-slate-800 dark:text-white text-[13px] leading-tight r-name">
-                                        <?php echo str_replace(' ', '<br>', $res['name']); ?>
-                                    </div>
-                                </td>
-
-                                <td class="px-6 py-4">
-                                    <div
-                                        class="font-medium text-slate-700 dark:text-slate-300 text-[13px] leading-relaxed pr-4">
-                                        <?php echo $res['exam']; ?>
-                                    </div>
-                                </td>
-
-                                <td class="px-6 py-4">
-                                    <span
-                                        class="font-bold text-slate-800 dark:text-white text-[15px]"><?php echo $res['score']; ?></span><span
-                                        class="text-slate-400 dark:text-slate-500 text-[13px]">/<?php echo $res['total_score']; ?></span>
-                                </td>
-
-                                <td class="px-6 py-4 text-center">
-                                    <div class="font-medium text-slate-600 dark:text-slate-300 text-[13px]">
-                                        <?php echo $res['time_spent']; ?> <span
-                                            class="text-slate-300 dark:text-slate-600">/</span></div>
-                                    <div class="text-[12px] text-slate-400 dark:text-slate-500">
-                                        <?php echo $res['time_total']; ?></div>
-                                </td>
-
-                                <td class="px-6 py-4 text-center">
-                                    <?php if ($res['status_type'] == 'pass'): ?>
+                                    <td class="px-6 py-4 flex items-center gap-3">
                                         <div
-                                            class="inline-block px-3 py-1 bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full text-center border border-green-100 dark:border-green-800/50">
-                                            <div class="text-[11px] font-bold leading-tight">Đạt</div>
-                                            <div class="text-[9px] font-medium opacity-80">(Passed)</div>
+                                            class="w-9 h-9 rounded-full <?php echo $res['avatar_bg']; ?> <?php echo $res['avatar_bg_dark']; ?> flex items-center justify-center font-bold text-[12px] border border-white dark:border-slate-700">
+                                            <?php echo $res['avatar']; ?>
                                         </div>
-                                    <?php else: ?>
-                                        <div
-                                            class="inline-block px-3 py-1 bg-red-50 dark:bg-red-900/30 text-red-500 dark:text-red-400 rounded-full text-center border border-red-100 dark:border-red-800/50">
-                                            <div class="text-[11px] font-bold leading-tight">Trượt</div>
-                                            <div class="text-[9px] font-medium opacity-80">(Failed)</div>
+                                        <div class="font-bold text-slate-800 dark:text-white text-[13px] leading-tight r-name">
+                                            <?php echo str_replace(' ', '<br>', htmlspecialchars($res['name'])); ?>
                                         </div>
-                                    <?php endif; ?>
-                                </td>
+                                    </td>
 
-                                <td class="px-6 py-4 text-center">
-                                    <button
-                                        onclick="showToast('info', 'Chi tiết bài thi', 'Đang mở lời giải chi tiết cho thí sinh <?php echo $res['name']; ?>...')"
-                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-[#1e3bb3] dark:text-[#4b6bfb] rounded-lg text-[12px] font-bold hover:bg-blue-100 dark:hover:bg-blue-900/40 transition">
-                                        <span class="material-icons text-[16px]">visibility</span> Xem lời giải
-                                    </button>
+                                    <td class="px-6 py-4">
+                                        <div
+                                            class="font-medium text-slate-700 dark:text-slate-300 text-[13px] leading-relaxed pr-4">
+                                            <?php echo htmlspecialchars($res['exam']); ?>
+                                        </div>
+                                    </td>
+
+                                    <td class="px-6 py-4">
+                                        <span
+                                            class="font-bold text-slate-800 dark:text-white text-[15px]"><?php echo $res['score']; ?></span><span
+                                            class="text-slate-400 dark:text-slate-500 text-[13px]">/<?php echo $res['total_score']; ?></span>
+                                    </td>
+
+                                    <td class="px-6 py-4 text-center">
+                                        <div class="font-medium text-slate-600 dark:text-slate-300 text-[13px]">
+                                            <?php echo $res['time_spent']; ?> <span
+                                                class="text-slate-300 dark:text-slate-600">/</span></div>
+                                        <div class="text-[12px] text-slate-400 dark:text-slate-500">
+                                            <?php echo $res['time_total']; ?></div>
+                                    </td>
+
+                                    <td class="px-6 py-4 text-center">
+                                        <?php if ($res['status_type'] == 'pass'): ?>
+                                            <div
+                                                class="inline-block px-3 py-1 bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-full text-center border border-green-100 dark:border-green-800/50">
+                                                <div class="text-[11px] font-bold leading-tight">Đạt</div>
+                                                <div class="text-[9px] font-medium opacity-80">(Passed)</div>
+                                            </div>
+                                        <?php else: ?>
+                                            <div
+                                                class="inline-block px-3 py-1 bg-red-50 dark:bg-red-900/30 text-red-500 dark:text-red-400 rounded-full text-center border border-red-100 dark:border-red-800/50">
+                                                <div class="text-[11px] font-bold leading-tight">Trượt</div>
+                                                <div class="text-[9px] font-medium opacity-80">(Failed)</div>
+                                            </div>
+                                        <?php endif; ?>
+                                    </td>
+
+                                    <td class="px-6 py-4 text-center">
+                                        <button
+                                            onclick="showToast('info', 'Chi tiết bài thi', 'Đang mở lời giải chi tiết cho thí sinh <?php echo htmlspecialchars($res['name']); ?>...')"
+                                            class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-[#1e3bb3] dark:text-[#4b6bfb] rounded-lg text-[12px] font-bold hover:bg-blue-100 dark:hover:bg-blue-900/40 transition">
+                                            <span class="material-icons text-[16px]">visibility</span> Xem lời giải
+                                        </button>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="7" class="px-6 py-12 text-center text-slate-500 dark:text-slate-400">
+                                    <span class="material-icons text-4xl mb-2">search_off</span>
+                                    <p>Không tìm thấy kết quả thi nào</p>
                                 </td>
                             </tr>
-                        <?php endforeach; ?>
+                        <?php endif; ?>
                     </tbody>
                 </table>
             </div>
 
             <div
                 class="p-4 border-t border-slate-100 dark:border-slate-700 flex flex-col md:flex-row items-center justify-between text-sm text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 rounded-b-xl transition-colors">
-                <p id="paginationInfo">Hiển thị 1-3 trong số 5 kết quả</p>
+                <p id="paginationInfo">Hiển thị <?php echo min($offset + 1, $totalRecords); ?>-<?php echo min($offset + $limit, $totalRecords); ?> trong số <?php echo $totalRecords; ?> kết quả</p>
                 <div id="paginationControls" class="flex items-center gap-2 mt-3 md:mt-0">
                 </div>
             </div>
@@ -330,12 +541,62 @@ include 'components/sidebar.php';
         btn.disabled = true;
         btn.classList.add('opacity-70');
 
+        // Lấy các tham số filter hiện tại
+        const subjectFilter = document.getElementById('subjectFilter');
+        const examFilter = document.getElementById('examFilter');
+        const searchInput = document.getElementById('searchInput');
+        
+        let exportUrl = '?export=csv';
+        
+        if (subjectFilter && subjectFilter.value) {
+            exportUrl += '&ma_mon=' + encodeURIComponent(subjectFilter.value);
+        }
+        if (examFilter && examFilter.value) {
+            exportUrl += '&ma_ky_thi=' + encodeURIComponent(examFilter.value);
+        }
+        if (searchInput && searchInput.value) {
+            exportUrl += '&search=' + encodeURIComponent(searchInput.value);
+        }
+
         setTimeout(() => {
+            // Chuyển hướng đến URL xuất CSV
+            window.location.href = exportUrl;
+            
             showToast('success', 'Thành công', 'Báo cáo điểm thi đã được tải xuống thiết bị của bạn.');
             btn.innerHTML = originalText;
             btn.disabled = false;
             btn.classList.remove('opacity-70');
-        }, 1500);
+        }, 500);
+    }
+
+    /* =================================================================
+       HÀM ÁP DỤNG BỘ LỌC
+       ================================================================= */
+    function applyFilters() {
+        const subjectFilter = document.getElementById('subjectFilter');
+        const examFilter = document.getElementById('examFilter');
+        const searchInput = document.getElementById('searchInput');
+        
+        let url = '?';
+        const params = [];
+        
+        if (subjectFilter && subjectFilter.value) {
+            params.push('ma_mon=' + encodeURIComponent(subjectFilter.value));
+        }
+        if (examFilter && examFilter.value) {
+            params.push('ma_ky_thi=' + encodeURIComponent(examFilter.value));
+        }
+        if (searchInput && searchInput.value) {
+            params.push('search=' + encodeURIComponent(searchInput.value));
+        }
+        
+        if (params.length > 0) {
+            url += params.join('&');
+        } else {
+            url = window.location.pathname;
+        }
+        
+        window.location.href = url;
     }
 
     /* =================================================================
@@ -457,3 +718,4 @@ include 'components/sidebar.php';
         updatePagination();
     });
 </script>
+

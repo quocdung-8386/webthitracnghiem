@@ -3,45 +3,230 @@
 $title = "Danh sách thí sinh - Hệ Thống Thi Trực Tuyến";
 $active_menu = "list_candidates"; 
 
-// Dữ liệu mô phỏng thí sinh theo thiết kế
-$candidates = [
-    [
-        'id' => 'SV2023001', 'name' => 'Nguyễn Văn An', 'initial' => 'NA', 'avatar_bg' => 'bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400',
-        'class' => 'CNTT K20A', 'email' => 'an.nv2023001@sv.edu.vn', 
-        'status' => 'Đang hoạt động', 'status_type' => 'active'
-    ],
-    [
-        'id' => 'SV2023042', 'name' => 'Trần Thị Hoa', 'initial' => 'TH', 'avatar_bg' => 'bg-orange-100 text-orange-600 dark:bg-orange-900/50 dark:text-orange-400',
-        'class' => 'CNTT K20A', 'email' => 'hoa.tt2023042@sv.edu.vn', 
-        'status' => 'Đang thi', 'status_type' => 'testing'
-    ],
-    [
-        'id' => 'SV2023115', 'name' => 'Lê Hoàng Minh', 'initial' => 'LM', 'avatar_bg' => 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300',
-        'class' => 'Kinh tế K21', 'email' => 'minh.lh2023115@sv.edu.vn', 
-        'status' => 'Đang khóa', 'status_type' => 'locked'
-    ],
-    [
-        'id' => 'SV2023204', 'name' => 'Phạm Anh Tuấn', 'initial' => 'PT', 'avatar_bg' => 'bg-purple-100 text-purple-600 dark:bg-purple-900/50 dark:text-purple-400',
-        'class' => 'Ngôn ngữ Anh K19', 'email' => 'tuan.pa2023204@sv.edu.vn', 
-        'status' => 'Đang hoạt động', 'status_type' => 'active'
-    ],
-    [
-        'id' => 'SV2023088', 'name' => 'Bùi Ngọc Chi', 'initial' => 'BC', 'avatar_bg' => 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400',
-        'class' => 'CNTT K20B', 'email' => 'chi.bn2023088@sv.edu.vn', 
-        'status' => 'Đang hoạt động', 'status_type' => 'active'
-    ],
-    [
-        'id' => 'SV2023099', 'name' => 'Hoàng Thanh Tâm', 'initial' => 'HT', 'avatar_bg' => 'bg-rose-100 text-rose-600 dark:bg-rose-900/50 dark:text-rose-400',
-        'class' => 'Kinh tế K21', 'email' => 'tam.ht2023099@sv.edu.vn', 
-        'status' => 'Đang hoạt động', 'status_type' => 'active'
-    ],
-    [
-        'id' => 'SV2023105', 'name' => 'Vũ Hải Đăng', 'initial' => 'VD', 'avatar_bg' => 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400',
-        'class' => 'CNTT K20A', 'email' => 'dang.vh2023105@sv.edu.vn', 
-        'status' => 'Đang khóa', 'status_type' => 'locked'
-    ]
-];
+// 2. Kết nối Database
+require_once __DIR__ . '/../../app/config/Database.php';
 
+// 3. Xử lý Backend CRUD
+$message = '';
+$messageType = '';
+
+if($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['action'] ?? '';
+    
+    try {
+        $conn = Database::getConnection();
+        
+        // THÊM THÍ SINH
+        if($action === 'add_student') {
+            $ho_ten = trim($_POST['ho_ten'] ?? '');
+            $ten_dang_nhap = trim($_POST['ten_dang_nhap'] ?? '');
+            $email = trim($_POST['email'] ?? '');
+            $lop = trim($_POST['lop'] ?? '');
+            $gui_tai_khoan = isset($_POST['gui_tai_khoan']);
+            
+            if(empty($ho_ten) || empty($ten_dang_nhap) || empty($email)) {
+                $message = 'Họ tên, mã số và email là bắt buộc';
+                $messageType = 'error';
+            } else {
+                // Kiểm tra email đã tồn tại
+                $checkStmt = $conn->prepare("SELECT ma_nguoi_dung FROM nguoi_dung WHERE email = ?");
+                $checkStmt->execute([$email]);
+                if($checkStmt->fetch()) {
+                    $message = 'Email đã tồn tại trong hệ thống';
+                    $messageType = 'error';
+                } else {
+                    // Kiểm tra ten_dang_nhap đã tồn tại
+                    $checkUserStmt = $conn->prepare("SELECT ma_nguoi_dung FROM nguoi_dung WHERE ten_dang_nhap = ?");
+                    $checkUserStmt->execute([$ten_dang_nhap]);
+                    if($checkUserStmt->fetch()) {
+                        $message = 'Mã số thí sinh đã tồn tại trong hệ thống';
+                        $messageType = 'error';
+                    } else {
+                        // Lấy ma_vai_tro của sinh viên
+                        $roleStmt = $conn->query("SELECT ma_vai_tro FROM vai_tro WHERE ten_vai_tro = 'Thí sinh' OR ten_vai_tro = 'sinh_vien' LIMIT 1");
+                        $role = $roleStmt->fetch(PDO::FETCH_ASSOC);
+                        $ma_vai_tro = $role ? $role['ma_vai_tro'] : 3;
+                        
+                        // Tạo mật khẩu ngẫu nhiên
+                        $mat_khau = substr(str_shuffle('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'), 0, 8);
+                        $mat_khau_hash = password_hash($mat_khau, PASSWORD_BCRYPT);
+                        
+                        // Insert thí sinh
+                        $insertStmt = $conn->prepare("
+                            INSERT INTO nguoi_dung (ma_nguoi_dung, ho_ten, ten_dang_nhap, email, mat_khau, ma_vai_tro, trang_thai)
+                            VALUES (?, ?, ?, ?, ?, ?, 1)
+                        ");
+                        $insertStmt->execute([
+                            $ten_dang_nhap,
+                            $ho_ten,
+                            $ten_dang_nhap,
+                            $email,
+                            $mat_khau_hash,
+                            $ma_vai_tro
+                        ]);
+                        
+                        $message = 'Thêm thí sinh thành công!';
+                        $messageType = 'success';
+                    }
+                }
+            }
+        }
+        
+        // SỬA THÍ SINH
+        if($action === 'edit_student') {
+            $ma_nguoi_dung = $_POST['ma_nguoi_dung'] ?? '';
+            $ho_ten = trim($_POST['ho_ten'] ?? '');
+            $email = trim($_POST['email'] ?? '');
+            $trang_thai = $_POST['trang_thai'] ?? 'hoat_dong';
+            
+            if(empty($ma_nguoi_dung) || empty($ho_ten) || empty($email)) {
+                $message = 'Họ tên và email là bắt buộc';
+                $messageType = 'error';
+            } else {
+                // Kiểm tra email đã tồn tại (trừ chính mình)
+                $checkStmt = $conn->prepare("SELECT ma_nguoi_dung FROM nguoi_dung WHERE email = ? AND ma_nguoi_dung != ?");
+                $checkStmt->execute([$email, $ma_nguoi_dung]);
+                if($checkStmt->fetch()) {
+                    $message = 'Email đã tồn tại trong hệ thống';
+                    $messageType = 'error';
+                } else {
+                    // Map trạng thái
+                    $trang_thai_map = [
+                        'hoat_dong' => 1,
+                        'dang_thi' => 1, // Giữ nguyên hoạt động
+                        'bi_khoa' => 0
+                    ];
+                    $trang_thai_value = isset($trang_thai_map[$trang_thai]) ? $trang_thai_map[$trang_thai] : 1;
+                    
+                    $updateStmt = $conn->prepare("
+                        UPDATE nguoi_dung 
+                        SET ho_ten = ?, email = ?, trang_thai = ?
+                        WHERE ma_nguoi_dung = ?
+                    ");
+                    $updateStmt->execute([$ho_ten, $email, $trang_thai_value, $ma_nguoi_dung]);
+                    
+                    $message = 'Cập nhật thông tin thí sinh thành công!';
+                    $messageType = 'success';
+                }
+            }
+        }
+        
+        // XÓA THÍ SINH
+        if($action === 'delete_student') {
+            $ma_nguoi_dung = $_POST['ma_nguoi_dung'] ?? '';
+            
+            if(!empty($ma_nguoi_dung)) {
+                $deleteStmt = $conn->prepare("DELETE FROM nguoi_dung WHERE ma_nguoi_dung = ?");
+                $deleteStmt->execute([$ma_nguoi_dung]);
+                
+                $message = 'Xóa thí sinh thành công!';
+                $messageType = 'success';
+            }
+        }
+        
+        // Redirect để tránh form resubmission
+        if(!empty($message)) {
+            $redirectUrl = $_SERVER['PHP_SELF'] . '?msg=' . urlencode($message) . '&type=' . $messageType;
+            header('Location: ' . $redirectUrl);
+            exit;
+        }
+        
+    } catch (Exception $e) {
+        $message = 'Lỗi: ' . $e->getMessage();
+        $messageType = 'error';
+    }
+}
+
+// Lấy message từ URL nếu có redirect
+$pageMessage = isset($_GET['msg']) ? $_GET['msg'] : '';
+$pageMessageType = isset($_GET['type']) ? $_GET['type'] : 'info';
+
+// 4. LẤY DANH SÁCH THÍ SINH TỪ DATABASE
+$candidates = [];
+$conn = Database::getConnection();
+
+$sql = "
+SELECT 
+    nd.ma_nguoi_dung,
+    nd.ho_ten,
+    nd.ten_dang_nhap,
+    nd.email,
+    nd.trang_thai,
+    nd.ngay_tao
+FROM nguoi_dung nd
+JOIN vai_tro vt 
+    ON nd.ma_vai_tro = vt.ma_vai_tro
+WHERE vt.ten_vai_tro = 'thi_sinh'
+ORDER BY nd.ma_nguoi_dung DESC
+";
+
+$stmt = $conn->prepare($sql);
+$stmt->execute();
+
+$students = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Map dữ liệu database sang format giao diện
+    $avatarColors = [
+        ['bg' => 'bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400', 'letter' => 'B'],
+        ['bg' => 'bg-orange-100 text-orange-600 dark:bg-orange-900/50 dark:text-orange-400', 'letter' => 'C'],
+        ['bg' => 'bg-green-100 text-green-600 dark:bg-green-900/50 dark:text-green-400', 'letter' => 'D'],
+        ['bg' => 'bg-purple-100 text-purple-600 dark:bg-purple-900/50 dark:text-purple-400', 'letter' => 'E'],
+        ['bg' => 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400', 'letter' => 'F'],
+        ['bg' => 'bg-rose-100 text-rose-600 dark:bg-rose-900/50 dark:text-rose-400', 'letter' => 'G'],
+        ['bg' => 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/50 dark:text-indigo-400', 'letter' => 'H'],
+        ['bg' => 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300', 'letter' => 'K']
+    ];
+    
+    $colorIndex = 0;
+    foreach($students as $st) {
+        // Tạo initial từ họ tên
+        $words = explode(' ', trim($st['ho_ten']));
+        $initial = '';
+        if(count($words) >= 2) {
+            $initial = strtoupper(substr($words[0], 0, 1) . end($words));
+        } else {
+            $initial = strtoupper(substr($st['ho_ten'], 0, 2));
+        }
+        
+        // Tạo class từ ten_dang_nhap hoặc mặc định
+        $class = 'Chưa phân lớp';
+        if(!empty($st['ten_dang_nhap'])) {
+            // Nếu có định dạng SV..., lấy làm class
+            if(stripos($st['ten_dang_nhap'], 'SV') === 0) {
+                $class = 'SV-' . strtoupper($st['ten_dang_nhap']);
+            }
+        }
+        
+        // Map trạng thái
+        $status = 'Đang hoạt động';
+        $status_type = 'active';
+        
+        if($st['trang_thai'] == 0) {
+            $status = 'Đang khóa';
+            $status_type = 'locked';
+        }
+        
+        // Chọn màu avatar theo ký tự đầu
+        $firstLetter = strtoupper(substr($st['ho_ten'], 0, 1));
+        $charOrd = ord($firstLetter);
+        if($charOrd >= 65 && $charOrd <= 90) {
+            $colorIndex = ($charOrd - 65) % count($avatarColors);
+        }
+        
+        $candidates[] = [
+            'id' => $st['ma_nguoi_dung'],
+            'name' => $st['ho_ten'],
+            'initial' => $initial,
+            'avatar_bg' => $avatarColors[$colorIndex]['bg'],
+            'class' => $class,
+            'email' => $st['email'],
+            'status' => $status,
+            'status_type' => $status_type
+        ];
+        
+        $colorIndex = ($colorIndex + 1) % count($avatarColors);
+    }
+    
 include 'components/header.php';
 include 'components/sidebar.php';
 ?>
@@ -194,16 +379,17 @@ include 'components/sidebar.php';
             </button>
         </div>
 
-        <form id="formAddStudent" onsubmit="event.preventDefault(); showToast('success', 'Thành công', 'Thông tin thí sinh đã được lưu vào hệ thống.'); closeModal('addStudentModal'); document.getElementById('formAddStudent').reset();" class="p-8 space-y-5 overflow-y-auto custom-scrollbar flex-1">
+<form id="formAddStudent" action="" method="POST" class="p-8 space-y-5 overflow-y-auto custom-scrollbar flex-1">
+            <input type="hidden" name="action" value="add_student">
             <div>
                 <label class="block text-[13px] font-bold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-1">Họ và tên <span class="text-red-500">*</span></label>
-                <input type="text" placeholder="VD: Nguyễn Văn A" required class="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:border-[#254ada] focus:ring-4 focus:ring-blue-500/5 transition text-slate-800 dark:text-white placeholder-slate-400">
+                <input type="text" name="ho_ten" placeholder="VD: Nguyễn Văn A" required class="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:border-[#254ada] focus:ring-4 focus:ring-blue-500/5 transition text-slate-800 dark:text-white placeholder-slate-400">
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
                     <label class="block text-[13px] font-bold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-1">Mã số thí sinh <span class="text-red-500">*</span></label>
-                    <input type="text" placeholder="VD: SV123456" required class="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:border-[#254ada] focus:ring-4 focus:ring-blue-500/5 transition text-slate-800 dark:text-white placeholder-slate-400">
+                    <input type="text" name="ten_dang_nhap" placeholder="VD: SV123456" required class="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:border-[#254ada] focus:ring-4 focus:ring-blue-500/5 transition text-slate-800 dark:text-white placeholder-slate-400">
                 </div>
                 <div>
                     <label class="block text-[13px] font-bold text-slate-700 dark:text-slate-300 mb-2">Ngày sinh</label>
@@ -217,10 +403,12 @@ include 'components/sidebar.php';
             <div>
                 <label class="block text-[13px] font-bold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-1">Lớp / Đơn vị <span class="text-red-500">*</span></label>
                 <div class="relative">
-                    <select required class="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:border-[#254ada] transition text-slate-800 dark:text-white appearance-none cursor-pointer">
+                    <select name="lop" required class="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:border-[#254ada] transition text-slate-800 dark:text-white appearance-none cursor-pointer">
                         <option value="" disabled selected>Chọn lớp / phòng ban</option>
                         <option value="cntt-k20a">CNTT K20A</option>
+                        <option value="cntt-k20b">CNTT K20B</option>
                         <option value="kt-k21">Kinh tế K21</option>
+                        <option value="anh-k19">Ngôn ngữ Anh K19</option>
                     </select>
                     <span class="material-icons absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">expand_more</span>
                 </div>
@@ -230,7 +418,7 @@ include 'components/sidebar.php';
                 <label class="block text-[13px] font-bold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-1">Email liên hệ <span class="text-red-500">*</span></label>
                 <div class="relative group">
                     <span class="material-icons absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#254ada] transition-colors text-[18px]">email</span>
-                    <input type="email" placeholder="example@domain.com" required class="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:border-[#254ada] transition text-slate-800 dark:text-white placeholder-slate-400">
+                    <input type="email" name="email" placeholder="example@domain.com" required class="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:border-[#254ada] transition text-slate-800 dark:text-white placeholder-slate-400">
                 </div>
             </div>
 
@@ -316,6 +504,17 @@ function showToast(type, title, message) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    
+    // 0. Xử lý hiển thị message từ URL (sau khi redirect)
+    const urlParams = new URLSearchParams(window.location.search);
+    const msg = urlParams.get('msg');
+    const msgType = urlParams.get('type');
+    if (msg) {
+        const title = msgType === 'success' ? 'Thành công' : (msgType === 'error' ? 'Lỗi' : 'Thông báo');
+        showToast(msgType || 'info', title, msg);
+        // Xóa query string sau khi hiển thị
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
     
     // 1. Dark Mode Toggle
     const darkModeToggle = document.getElementById('darkModeToggle');

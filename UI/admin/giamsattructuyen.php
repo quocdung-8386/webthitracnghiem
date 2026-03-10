@@ -10,7 +10,6 @@ $conn = Database::getConnection();
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 $status_filter = isset($_GET['status']) ? $_GET['status'] : 'all';
 
-// Thống kê tổng quan
 $statsSql = "
 SELECT 
     (SELECT COUNT(*) FROM bai_lam WHERE trang_thai = 'dang_lam') as total_examining,
@@ -21,11 +20,6 @@ $stats = $statsStmt->fetch(PDO::FETCH_ASSOC);
 $totalExamining = $stats['total_examining'] ?? 0;
 $totalViolations = $stats['total_violations'] ?? 0;
 
-// Query lấy danh sách thí sinh đang thi
-// SỬA THEO DATABASE SCHEMA MỚI:
-// - bai_lam.thoi_diem_bat_dau (không phải thoi_gian_bat_dau)
-// - so_cau_da_lam tính từ COUNT(chi_tiet_bai_lam) WHERE ma_dap_an_chon IS NOT NULL
-// - tong_so_cau tính từ COUNT(chi_tiet_de_thi) JOIN ca_thi -> de_thi
 $sql = "
 SELECT 
     nd.ma_nguoi_dung,

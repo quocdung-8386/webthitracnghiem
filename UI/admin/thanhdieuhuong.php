@@ -1,83 +1,121 @@
 <?php
 // 1. Cấu hình thông tin trang
 $title = "Trung tâm Điều phối Phiên thi - Hệ Thống Thi Trực Tuyến";
-$active_menu = "nav_bar"; // Làm sáng menu "Thanh điều hướng" theo đúng ảnh chụp
+$active_menu = "nav_bar";
 
-// Dữ liệu mô phỏng cho 6 phòng thi
-$rooms = [
-    [
-        'name' => 'Phòng thi 01',
-        'subject' => 'LẬP TRÌNH JAVA',
-        'students' => '42/45',
-        'time' => '15:30',
-        'time_sec' => 930,
-        'status' => 'CẢNH BÁO',
-        'status_icon' => 'warning',
-        'type' => 'warning',
-        'alert_icon' => 'person_off',
-        'alert_text' => '02 Thí sinh mất kết nối > 5 phút'
-    ],
-    [
-        'name' => 'Phòng thi 02',
-        'subject' => 'CƠ SỞ DỮ LIỆU',
-        'students' => '30/30',
-        'time' => '45:12',
-        'time_sec' => 2712,
-        'status' => 'ĐANG DIỄN RA',
-        'status_icon' => '',
-        'type' => 'normal',
-        'alert_icon' => 'check_circle',
-        'alert_text' => 'Không có cảnh báo hoạt động'
-    ],
-    [
-        'name' => 'Phòng thi 03',
-        'subject' => 'KINH TẾ VĨ MÔ',
-        'students' => '118/120',
-        'time' => '03:45',
-        'time_sec' => 225,
-        'status' => 'SẮP KẾT THÚC',
-        'status_icon' => '',
-        'type' => 'ending',
-        'alert_icon' => 'assignment_turned_in',
-        'alert_text' => '112 thí sinh đã nộp bài'
-    ],
-    [
-        'name' => 'Phòng thi 04',
-        'subject' => 'TOÁN RỜI RẠC',
-        'students' => '25/25',
-        'time' => '82:20',
-        'time_sec' => 4940,
-        'status' => 'ĐANG DIỄN RA',
-        'status_icon' => '',
-        'type' => 'normal',
-        'alert_icon' => 'info',
-        'alert_text' => 'Đã bắt đầu được 7 phút'
-    ],
-    [
-        'name' => 'Phòng thi 05',
-        'subject' => 'MẠNG MÁY TÍNH',
-        'students' => '55/56',
-        'time' => '22:05',
-        'time_sec' => 1325,
-        'status' => 'VI PHẠM',
-        'status_icon' => 'error',
-        'type' => 'danger',
-        'alert_icon' => 'visibility_off',
-        'alert_text' => '01 Thí sinh thoát trình duyệt'
-    ],
-    [
-        'name' => 'Phòng thi 06',
-        'subject' => 'TRIẾT HỌC',
-        'students' => '18/20',
-        'time' => '110:00',
-        'time_sec' => 6600,
-        'status' => 'ĐANG DIỄN RA',
-        'status_icon' => '',
-        'type' => 'normal',
-        'alert_icon' => 'lock',
-        'alert_text' => 'Mã phòng: TRIET24A'
-    ]
-];
+// Kết nối database và lấy dữ liệu phòng thi thực tế
+require_once __DIR__ . '/../../app/config/Database.php';
+
+$conn = Database::getConnection();
+
+// Query lấy các ca thi đang diễn ra (Đã tối ưu)
+// Sửa: JOIN đúng ct.ma_phong = pt.ma_phong (INT)
+// Tối ưu: Dùng LEFT JOIN + COUNT thay vì subquery trong SELECT
+$sql = "
+    SELECT 
+        ct.ma_ca_thi,
+        ct.ma_phong,
+        ct.thoi_gian_bat_dau,
+        ct.thoi_gian_ket_thuc,
+        dt.ma_de_thi,
+        dt.tieu_de as ten_de_thi,
+        COALESCE(pt.ten_phong, CONCAT('Phòng ', ct.ma_phong)) as ten_phong,
+        COALESCE(pt.suc_chua, 50) as suc_chua,
+        COUNT(DISTINCT CASE WHEN bl.trang_thai IN ('dang_lam', 'da_nop') THEN bl.ma_nguoi_dung END) as so_thi_sinh_da_vao,
+        COUNT(DISTINCT CASE WHEN bl.trang_thai = 'da_nop' THEN bl.ma_nguoi_dung END) as so_thi_sinh_da_nop,
+        COUNT(DISTINCT CASE WHEN vpt.thoi_gian >= DATE_SUB(NOW(), INTERVAL 1 HOUR) THEN vpt.id_vi_pham END) as so_vi_pham_1h
+    FROM ca_thi ct
+    INNER JOIN de_thi dt ON ct.ma_de_thi = dt.ma_de_thi
+    LEFT JOIN phong_thi pt ON ct.ma_phong = pt.ma_phong
+    LEFT JOIN bai_lam bl ON ct.ma_ca_thi = bl.ma_ca_thi
+    LEFT JOIN vi_pham_thi vpt ON bl.ma_bai_lam = vpt.ma_bai_lam
+    WHERE NOW() BETWEEN ct.thoi_gian_bat_dau AND ct.thoi_gian_ket_thuc
+    GROUP BY ct.ma_ca_thi, ct.ma_phong, ct.thoi_gian_bat_dau, ct.thoi_gian_ket_thuc, 
+             dt.ma_de_thi, dt.tieu_de, pt.ten_phong, pt.suc_chua
+    ORDER BY ct.thoi_gian_bat_dau ASC
+";
+
+$stmt = $conn->query($sql);
+$examShifts = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Xây dựng mảng $rooms với cấu trúc tương thích frontend
+$rooms = [];
+$now = new DateTime();
+
+foreach ($examShifts as $shift) {
+    // Tính thời gian còn lại (giây)
+    $endTime = new DateTime($shift['thoi_gian_ket_thuc']);
+    $timeDiff = $endTime->getTimestamp() - $now->getTimestamp();
+    $timeSec = max(0, $timeDiff); // Không âm
+    
+    // Format thời gian MM:SS
+    $minutes = floor($timeSec / 60);
+    $seconds = $timeSec % 60;
+    $timeDisplay = sprintf('%02d:%02d', $minutes, $seconds);
+    
+    // Số liệu thí sinh
+    $studentsCount = (int)$shift['so_thi_sinh_da_vao'];
+    $maxStudents = (int)($shift['suc_chua'] ?? 50); // Mặc định 50 nếu NULL
+    $studentsDisplay = $studentsCount . '/' . $maxStudents;
+    
+    // Xác định trạng thái và type
+    $statusIcon = '';
+    $alertIcon = 'info';
+    $alertText = 'Không có cảnh báo';
+    $status = 'ĐANG DIỄN RA';
+    $type = 'normal';
+    $badgeClass = 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 border-green-100 dark:border-green-800/50';
+    
+    // Kiểm tra các điều kiện đặc biệt
+    $soViPham = (int)$shift['so_vi_pham_1h'];
+    $soDaNop = (int)$shift['so_thi_sinh_da_nop'];
+    
+    // Ưu tiên cao nhất: Vi phạm
+    if ($soViPham > 0) {
+        $status = 'VI PHẠM';
+        $statusIcon = 'error';
+        $type = 'danger';
+        $alertIcon = 'visibility_off';
+        $alertText = $soViPham . ' Thí sinh vi phạm trong 1 giờ qua';
+    }
+    // Ưu tiên thứ 2: Sắp kết thúc (< 5 phút)
+    elseif ($timeSec > 0 && $timeSec < 300) {
+        $status = 'SẮP KẾT THÚC';
+        $type = 'ending';
+        $alertIcon = 'assignment_turned_in';
+        $alertText = $soDaNop . ' thí sinh đã nộp bài';
+    }
+    // Bình thường
+    else {
+        // Kiểm tra thời gian đã bắt đầu được bao lâu
+        $startTime = new DateTime($shift['thoi_gian_bat_dau']);
+        $elapsedMinutes = floor(($now->getTimestamp() - $startTime->getTimestamp()) / 60);
+        
+        if ($elapsedMinutes < 10) {
+            $alertIcon = 'lock';
+            $alertText = 'Mã phòng: ' . htmlspecialchars($shift['ma_phong']);
+        } elseif ($elapsedMinutes < 30) {
+            $alertIcon = 'info';
+            $alertText = 'Đã bắt đầu được ' . $elapsedMinutes . ' phút';
+        } else {
+            $alertIcon = 'check_circle';
+            $alertText = 'Không có cảnh báo hoạt động';
+        }
+    }
+    
+    $rooms[] = [
+        'name' => htmlspecialchars($shift['ten_phong'] ?: 'Phòng thi ' . $shift['ma_phong']),
+        'subject' => strtoupper(htmlspecialchars($shift['ten_de_thi'] ?: 'Môn thi')),
+        'students' => $studentsDisplay,
+        'time' => $timeDisplay,
+        'time_sec' => $timeSec,
+        'status' => $status,
+        'status_icon' => $statusIcon,
+        'type' => $type,
+        'alert_icon' => $alertIcon,
+        'alert_text' => $alertText
+    ];
+}
 
 // Nhúng Header và Sidebar
 include 'components/header.php';
@@ -86,59 +124,91 @@ include 'components/sidebar.php';
 
 <main
     class="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 dark:bg-slate-900 transition-colors duration-200">
-    <header
-        class="h-16 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-8 flex items-center justify-between z-10 shrink-0 transition-colors">
-            <div class="text-sm text-slate-500 dark:text-slate-400">
-                Thí sinh & Làm bài <span class="mx-2">›</span> <span class="text-slate-800 dark:text-white font-medium">Trung tâm Điều phối Phiên thi</span>    
+   <header
+    class="h-16 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-8 flex items-center justify-between z-10 shrink-0 transition-colors">
+    
+    <!-- Breadcrumb -->
+    <div class="text-sm text-slate-500 dark:text-slate-400">
+        Thí sinh & Làm bài <span class="mx-2">›</span>
+        <span class="text-slate-800 dark:text-white font-medium">
+            Trung tâm Điều phối Phiên thi
+        </span>
+    </div>
 
-        <div class="flex items-center gap-5">
-            <div class="relative hidden md:block">
-                <span
-                    class="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">search</span>
-                <input type="text" placeholder="Tìm phòng thi..."
-                    class="pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-full text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#254ada] w-64 transition">
-            </div>
+    <!-- Right actions -->
+    <div class="flex items-center gap-5">
 
-            <div class="flex items-center gap-4">
-                <div class="relative">
-                    <button id="notifButton" type="button"
-                        class="relative text-slate-500 dark:text-slate-400 hover:text-[#254ada] dark:hover:text-[#4b6bfb] transition focus:outline-none">
-                        <span class="material-icons">notifications</span>
-                        <span
-                            class="absolute top-0 right-1 w-2 h-2 bg-red-500 rounded-full border border-white dark:border-slate-800"></span>
-                    </button>
-                    <div id="notifDropdown"
-                        class="hidden absolute right-0 mt-3 w-80 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700 z-50 overflow-hidden transform transition-all">
-                        <div
-                            class="px-4 py-3 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
-                            <span class="font-bold text-sm text-slate-800 dark:text-white">Thông báo hệ thống</span>
-                        </div>
-                        <div class="max-h-[300px] overflow-y-auto custom-scrollbar">
-                            <a href="#"
-                                class="block px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 border-b border-slate-50 dark:border-slate-700 transition">
-                                <p class="text-[13px] text-slate-700 dark:text-slate-300 leading-snug"><span
-                                        class="font-semibold text-red-500">Phòng thi 05</span> có thí sinh vi phạm quy
-                                    chế.</p>
-                                <span class="text-[11px] text-slate-400 mt-1.5 flex items-center gap-1"><span
-                                        class="material-icons text-[12px]">schedule</span> Vừa xong</span>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-                <button id="darkModeToggle"
-                    class="text-slate-500 dark:text-slate-400 hover:text-[#254ada] dark:hover:text-[#4b6bfb] transition focus:outline-none">
-                    <span class="material-icons" id="darkModeIcon">dark_mode</span>
-                </button>
-            </div>
+        <!-- Search -->
+        <div class="relative hidden md:block">
+            <span class="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">
+                search
+            </span>
+            <input type="text" placeholder="Tìm kiếm nhanh..."
+                class="pl-10 pr-4 py-1.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-600 rounded-full text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-[#254ada] w-64 transition">
         </div>
-    </header>
+
+        <div class="flex items-center gap-4">
+
+            <!-- Notification -->
+            <div class="relative">
+                <button id="notifButton" type="button"
+                    class="relative text-slate-500 dark:text-slate-400 hover:text-[#254ada] transition focus:outline-none">
+                    <span class="material-icons">notifications</span>
+                    <span
+                        class="absolute top-0 right-1 w-2 h-2 bg-red-500 rounded-full border border-white dark:border-slate-800"></span>
+                </button>
+
+                <div id="notifDropdown"
+                    class="hidden absolute right-0 mt-3 w-80 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-100 dark:border-slate-700 z-50 overflow-hidden transform transition-all">
+
+                    <div
+                        class="px-4 py-3 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                        <span class="font-bold text-sm text-slate-800 dark:text-white">
+                            Thông báo mới
+                        </span>
+                        <a href="#"
+                            class="text-[11px] text-[#254ada] dark:text-[#4b6bfb] hover:underline font-medium">
+                            Đánh dấu đã đọc
+                        </a>
+                    </div>
+
+                    <div class="max-h-[300px] overflow-y-auto custom-scrollbar">
+                        <a href="#"
+                            class="block px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 border-b border-slate-50 dark:border-slate-700 transition">
+                            <p class="text-[13px] text-slate-700 dark:text-slate-300 leading-snug">
+                                Hệ thống đang cập nhật dữ liệu tiến trình học tập mới nhất.
+                            </p>
+                            <span class="text-[11px] text-slate-400 mt-1.5 flex items-center gap-1">
+                                <span class="material-icons text-[12px]">schedule</span>
+                                Vừa xong
+                            </span>
+                        </a>
+                    </div>
+
+                    <a href="#"
+                        class="block px-4 py-2.5 text-center text-sm text-[#254ada] dark:text-[#4b6bfb] font-medium bg-slate-50 dark:bg-slate-700/30 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                        Xem tất cả
+                    </a>
+
+                </div>
+            </div>
+
+            <!-- Dark mode -->
+            <button id="darkModeToggle"
+                class="text-slate-500 dark:text-slate-400 hover:text-[#254ada] transition focus:outline-none">
+                <span class="material-icons" id="darkModeIcon">dark_mode</span>
+            </button>
+
+        </div>
+    </div>
+</header>
 
     <div class="flex-1 overflow-y-auto p-8 custom-scrollbar transition-colors duration-200">
 
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8">
             <div>
                 <h2 class="text-2xl font-bold text-slate-800 dark:text-white mb-1">Trung tâm Điều phối Phiên thi</h2>
-                <p class="text-sm text-slate-500 dark:text-slate-400">Hiện có 6 phòng thi đang diễn ra đồng thời</p>
+                <p class="text-sm text-slate-500 dark:text-slate-400">Hiện có <?php echo count($rooms); ?> phòng thi đang diễn ra đồng thời</p>
             </div>
             <div class="flex items-center gap-3">
                 <div
