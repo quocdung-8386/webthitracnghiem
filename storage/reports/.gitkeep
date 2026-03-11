@@ -1,0 +1,8 @@
+<?php
+// This file prevents direct access to the reports directory
+// Place this .gitkeep file to maintain the folder structure in version control
+
+header('HTTP/1.0 403 Forbidden');
+echo 'Access Forbidden';
+exit;
+

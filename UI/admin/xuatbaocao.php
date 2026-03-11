@@ -3,45 +3,115 @@
 $title = "Xuất báo cáo - Hệ Thống Thi Trực Tuyến";
 $active_menu = "export_report"; // Biến active menu ở thanh sidebar
 
-// Dữ liệu mô phỏng Lịch sử xuất báo cáo (Đã thêm class Dark Mode cho Badge)
-$export_history = [
-    [
-        'name' => 'Bao_cao_Hoc_ky_1_Khoi_12_2023.xlsx',
-        'type' => 'Báo cáo theo lớp',
-        'date' => '12/05/2024 08:30',
-        'format' => 'XLSX',
-        'format_bg' => 'bg-green-50 dark:bg-green-900/30',
-        'format_text' => 'text-green-600 dark:text-green-400',
-        'size' => '2.4 MB'
-    ],
-    [
-        'name' => 'Ket_qua_Thi_Toan_Cao_Cap_A1.pdf',
-        'type' => 'Báo cáo theo môn',
-        'date' => '11/05/2024 15:45',
-        'format' => 'PDF',
-        'format_bg' => 'bg-red-50 dark:bg-red-900/30',
-        'format_text' => 'text-red-500 dark:text-red-400',
-        'size' => '4.8 MB'
-    ],
-    [
-        'name' => 'Danh_sach_Sinh_vien_Nganh_IT.csv',
-        'type' => 'Báo cáo cá nhân',
-        'date' => '10/05/2024 10:20',
-        'format' => 'CSV',
-        'format_bg' => 'bg-blue-50 dark:bg-blue-900/30',
-        'format_text' => 'text-blue-600 dark:text-blue-400',
-        'size' => '850 KB'
-    ],
-    [
-        'name' => 'Tong_hop_Ky_thi_Gia_dinh_2024.xlsx',
-        'type' => 'Báo cáo tổng hợp',
-        'date' => '09/05/2024 14:15',
-        'format' => 'XLSX',
-        'format_bg' => 'bg-green-50 dark:bg-green-900/30',
-        'format_text' => 'text-green-600 dark:text-green-400',
-        'size' => '1.2 MB'
-    ],
-];
+// Lấy dữ liệu lịch sử xuất báo cáo từ database (Server-side rendering lần đầu)
+function getInitialReportHistory($conn, $search = '', $page = 1, $limit = 10) {
+    try {
+        $offset = ($page - 1) * $limit;
+        
+        // Đếm tổng số bản ghi trước
+        $countSql = "SELECT COUNT(*) as total FROM bao_cao_xuat";
+        $countStmt = $conn->prepare($countSql);
+        $countStmt->execute();
+        $totalRecords = (int)$countStmt->fetch(PDO::FETCH_ASSOC)['total'];
+        $totalPages = $totalRecords > 0 ? ceil($totalRecords / $limit) : 1;
+        
+        // Query lấy dữ liệu phân trang
+        $sql = "SELECT 
+                    ma_bao_cao,
+                    ten_file,
+                    loai_bao_cao,
+                    ngay_tao,
+                    dinh_dang,
+                    dung_luong,
+                    duong_dan_file
+                FROM bao_cao_xuat
+                ORDER BY ngay_tao DESC 
+                LIMIT :limit OFFSET :offset";
+        
+        $stmt = $conn->prepare($sql);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        $reports = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Style cho các định dạng file
+        $formatStyles = [
+            'XLSX' => ['bg' => 'bg-green-50 dark:bg-green-900/30', 'text' => 'text-green-600 dark:text-green-400'],
+            'PDF' => ['bg' => 'bg-red-50 dark:bg-red-900/30', 'text' => 'text-red-500 dark:text-red-400'],
+            'CSV' => ['bg' => 'bg-blue-50 dark:bg-blue-900/30', 'text' => 'text-blue-600 dark:text-blue-400']
+        ];
+        
+        $formatted = [];
+        foreach ($reports as $r) {
+            $fmt = strtoupper($r['dinh_dang']);
+            $style = $formatStyles[$fmt] ?? $formatStyles['XLSX'];
+            $formatted[] = [
+                'id' => $r['ma_bao_cao'],
+                'name' => $r['ten_file'],
+                'type' => $r['loai_bao_cao'],
+                'date' => date('d/m/Y H:i', strtotime($r['ngay_tao'])),
+                'format' => $fmt,
+                'format_bg' => $style['bg'],
+                'format_text' => $style['text'],
+                'size' => $r['dung_luong'],
+                'path' => $r['duong_dan_file']
+            ];
+        }
+        
+        // Trả về cấu trúc đúng với JavaScript mong đợi
+        return [
+            'success' => true,
+            'data' => $formatted,
+            'pagination' => [
+                'current_page' => $page,
+                'total_pages' => $totalPages,
+                'total_records' => $totalRecords,
+                'from' => $totalRecords > 0 ? $offset + 1 : 0,
+                'to' => min($offset + $limit, $totalRecords)
+            ]
+        ];
+    } catch (Exception $e) {
+        return [
+            'success' => false,
+            'data' => [], 
+            'pagination' => [
+                'current_page' => 1,
+                'total_pages' => 1,
+                'total_records' => 0,
+                'from' => 0,
+                'to' => 0
+            ], 
+            'error' => $e->getMessage()
+        ];
+    }
+}
+
+// Include database config (use correct path: go up 2 levels from UI/admin/ to root)
+require_once __DIR__ . '/../../app/config/Database.php';
+
+// Kết nối database với try-catch xử lý lỗi
+try {
+    $conn = Database::getConnection();
+    $initialData = getInitialReportHistory($conn);
+} catch (PDOException $e) {
+    // Ghi log lỗi và hiển thị thông báo an toàn cho người dùng
+    error_log("Database Connection Error: " . $e->getMessage());
+    $initialData = [
+        'success' => false,
+        'data' => [], 
+        'pagination' => [
+            'current_page' => 1,
+            'total_pages' => 1,
+            'total_records' => 0,
+            'from' => 0,
+            'to' => 0
+        ],
+        'error' => 'Không thể kết nối cơ sở dữ liệu. Vui lòng liên hệ quản trị viên.'
+    ];
+}
+
+// Chuyển dữ liệu sang JSON để JavaScript sử dụng
+$initialDataJson = json_encode($initialData);
 
 // Nhúng Header và Sidebar
 include 'components/header.php';
@@ -208,40 +278,24 @@ include 'components/sidebar.php';
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 dark:divide-slate-700" id="historyTableBody">
-                            <?php foreach ($export_history as $row): ?>
-                                <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-700/50 transition group history-row">
-                                    <td class="px-6 py-4 font-medium text-slate-700 dark:text-slate-300 text-[13px] truncate r-name"
-                                        title="<?php echo $row['name']; ?>">
-                                        <?php echo $row['name']; ?>
-                                    </td>
-                                    <td class="px-6 py-4 text-slate-600 dark:text-slate-400 text-[13px]">
-                                        <?php echo $row['type']; ?></td>
-                                    <td class="px-6 py-4 text-slate-500 dark:text-slate-500 text-[13px] font-mono">
-                                        <?php echo $row['date']; ?></td>
-                                    <td class="px-6 py-4 text-center">
-                                        <span
-                                            class="px-2.5 py-1 <?php echo $row['format_bg']; ?> <?php echo $row['format_text']; ?> text-[10px] font-bold rounded uppercase inline-block min-w-[50px]"><?php echo $row['format']; ?></span>
-                                    </td>
-                                    <td
-                                        class="px-6 py-4 text-center text-slate-600 dark:text-slate-400 text-[13px] font-medium">
-                                        <?php echo $row['size']; ?></td>
-                                    <td class="px-6 py-4 text-center text-[#254ada] dark:text-[#4b6bfb]">
-                                        <button
-                                            onclick="showToast('success', 'Đang tải', 'File <?php echo $row['name']; ?> đang được tải xuống.')"
-                                            class="p-1.5 rounded-md hover:bg-blue-50 dark:hover:bg-slate-700 transition"
-                                            title="Tải xuống">
-                                            <span class="material-icons text-[20px]">file_download</span>
-                                        </button>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
+                            <!-- Dữ liệu sẽ được load qua AJAX -->
                         </tbody>
                     </table>
+                    <!-- Loading state -->
+                    <div id="loadingState" class="hidden py-8 text-center">
+                        <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-[#254ada] border-t-transparent"></div>
+                        <p class="mt-2 text-slate-500">Đang tải dữ liệu...</p>
+                    </div>
+                    <!-- Empty state -->
+                    <div id="emptyState" class="hidden py-8 text-center">
+                        <span class="material-icons text-slate-300 text-4xl">folder_open</span>
+                        <p class="mt-2 text-slate-500">Chưa có báo cáo nào được xuất</p>
+                    </div>
                 </div>
 
                 <div
                     class="p-4 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between text-sm text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 rounded-b-xl transition-colors">
-                    <p id="paginationInfo">Hiển thị 1-4 trong tổng số 28 báo cáo</p>
+                    <p id="paginationInfo">Đang tải...</p>
                     <div id="paginationControls" class="flex items-center gap-1.5">
                     </div>
                 </div>
@@ -303,9 +357,20 @@ include 'components/sidebar.php';
 <?php include 'components/footer.php'; ?>
 
 <script>
-    /* =================================================================
-       HÀM HIỂN THỊ THÔNG BÁO (TOAST)
-       ================================================================= */
+    // ============================================================
+    // BIẾN TOÀN CỤC
+    // ============================================================
+    let currentPage = 1;
+    let currentSearch = '';
+    let limitPerPage = 10;
+    let isLoading = false;
+
+    // Dữ liệu từ PHP server-side render (nếu có)
+    let reportData = <?php echo $initialDataJson; ?>;
+
+    // ============================================================
+    // HÀM HIỂN THỊ THÔNG BÁO (TOAST)
+    // ============================================================
     function showToast(type, title, message) {
         const container = document.getElementById('toastContainer');
         const template = document.getElementById('toastTemplate');
@@ -342,26 +407,249 @@ include 'components/sidebar.php';
         setTimeout(() => { if (container.contains(toastEl)) toastEl.querySelector('.toast-close').click(); }, 4000);
     }
 
-    /* =================================================================
-       HÀM XỬ LÝ TẠO BÁO CÁO (GIẢ LẬP)
-       ================================================================= */
-    function handleGenerateReport(btn) {
+    // ============================================================
+    // HÀM GỌI API LẤY LỊCH SỬ BÁO CÁO
+    // ============================================================
+    async function fetchReportHistory(page = 1, search = '') {
+        if (isLoading) return;
+        
+        isLoading = true;
+        const loadingState = document.getElementById('loadingState');
+        const emptyState = document.getElementById('emptyState');
+        const tableBody = document.getElementById('historyTableBody');
+        
+        if (loadingState) loadingState.classList.remove('hidden');
+        if (tableBody) tableBody.innerHTML = '';
+        
+        try {
+            const params = new URLSearchParams({
+                page: page,
+                limit: limitPerPage,
+                search: search
+            });
+            
+            const response = await fetch(`../api/get_report_history.php?${params}`);
+            const result = await response.json();
+            
+            if (result.success) {
+                reportData = result;
+                renderReportTable(result.data);
+                renderPagination(result.pagination);
+            } else {
+                showToast('error', 'Lỗi', result.message || 'Không thể tải dữ liệu');
+                if (emptyState) emptyState.classList.remove('hidden');
+            }
+        } catch (error) {
+            console.error('Error fetching report history:', error);
+            showToast('error', 'Lỗi kết nối', 'Không thể kết nối với máy chủ');
+            if (emptyState) emptyState.classList.remove('hidden');
+        } finally {
+            isLoading = false;
+            if (loadingState) loadingState.classList.add('hidden');
+        }
+    }
+
+    // ============================================================
+    // HÀM RENDER BẢNG DỮ LIỆU
+    // ============================================================
+    function renderReportTable(data) {
+        const tableBody = document.getElementById('historyTableBody');
+        const emptyState = document.getElementById('emptyState');
+        
+        if (!tableBody) return;
+        
+        tableBody.innerHTML = '';
+        
+        if (!data || data.length === 0) {
+            if (emptyState) emptyState.classList.remove('hidden');
+            return;
+        }
+        
+        if (emptyState) emptyState.classList.add('hidden');
+        
+        data.forEach(report => {
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-slate-50/80 dark:hover:bg-slate-700/50 transition group history-row';
+            row.innerHTML = `
+                <td class="px-6 py-4 font-medium text-slate-700 dark:text-slate-300 text-[13px] truncate r-name" 
+                    title="${report.name}">
+                    ${report.name}
+                </td>
+                <td class="px-6 py-4 text-slate-600 dark:text-slate-400 text-[13px]">
+                    ${report.type}
+                </td>
+                <td class="px-6 py-4 text-slate-500 dark:text-slate-500 text-[13px] font-mono">
+                    ${report.date}
+                </td>
+                <td class="px-6 py-4 text-center">
+                    <span class="px-2.5 py-1 ${report.format_bg} ${report.format_text} text-[10px] font-bold rounded uppercase inline-block min-w-[50px]">
+                        ${report.format}
+                    </span>
+                </td>
+                <td class="px-6 py-4 text-center text-slate-600 dark:text-slate-400 text-[13px] font-medium">
+                    ${report.size}
+                </td>
+                <td class="px-6 py-4 text-center text-[#254ada] dark:text-[#4b6bfb]">
+                    <a href="${report.path}" download 
+                       class="p-1.5 rounded-md hover:bg-blue-50 dark:hover:bg-slate-700 transition inline-flex"
+                       title="Tải xuống">
+                        <span class="material-icons text-[20px]">file_download</span>
+                    </a>
+                </td>
+            `;
+            tableBody.appendChild(row);
+        });
+    }
+
+    // ============================================================
+    // HÀM RENDER PHÂN TRANG
+    // ============================================================
+    function renderPagination(pagination) {
+        const paginationInfo = document.getElementById('paginationInfo');
+        const paginationControls = document.getElementById('paginationControls');
+        
+        if (!paginationInfo || !paginationControls) return;
+        
+        const { current_page, total_pages, total_records, from, to } = pagination;
+        
+        // Cập nhật thông tin
+        paginationInfo.innerHTML = `Hiển thị <span class="font-medium text-slate-800 dark:text-white">${from || 0} - ${to || 0}</span> trong tổng số <span class="font-medium text-slate-800 dark:text-white">${total_records}</span> báo cáo`;
+        
+        // Tạo controls
+        paginationControls.innerHTML = '';
+        
+        // Prev button
+        const prevBtn = document.createElement('button');
+        prevBtn.className = `w-8 h-8 flex items-center justify-center border rounded transition ${current_page === 1 ? 'border-slate-100 dark-800 opacity-:border-slate50 cursor-not-allowed text-slate-300 dark:text-slate-600' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-700 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-600'}`;
+        prevBtn.innerHTML = '<span class="material-icons text-[18px]">chevron_left</span>';
+        prevBtn.disabled = current_page === 1;
+        prevBtn.onclick = () => { if (current_page > 1) { currentPage--; fetchReportHistory(currentPage, currentSearch); } };
+        paginationControls.appendChild(prevBtn);
+        
+        // Page buttons
+        const createPageBtn = (i) => {
+            const btn = document.createElement('button');
+            if (i === current_page) {
+                btn.className = 'w-8 h-8 flex items-center justify-center bg-[#254ada] text-white rounded font-medium shadow-sm transition transform scale-105';
+            } else {
+                btn.className = 'w-8 h-8 flex items-center justify-center bg-white dark:bg-slate-800 border border-transparent hover:bg-slate-50 dark:hover:bg-slate-700 rounded font-medium text-slate-600 dark:text-slate-300 transition';
+            }
+            btn.innerText = i;
+            btn.onclick = () => { currentPage = i; fetchReportHistory(currentPage, currentSearch); };
+            return btn;
+        };
+        
+        const createDots = () => {
+            const span = document.createElement('span');
+            span.className = 'text-slate-400 px-1 tracking-widest text-xs';
+            span.innerText = '...';
+            return span;
+        };
+        
+        if (total_pages <= 5) {
+            for (let i = 1; i <= total_pages; i++) paginationControls.appendChild(createPageBtn(i));
+        } else {
+            paginationControls.appendChild(createPageBtn(1));
+            if (current_page > 3) paginationControls.appendChild(createDots());
+            
+            let startPage = Math.max(2, current_page - 1);
+            let endPage = Math.min(total_pages - 1, current_page + 1);
+            
+            if (current_page === 1) endPage = 3;
+            if (current_page === total_pages) startPage = total_pages - 2;
+            
+            for (let i = startPage; i <= endPage; i++) {
+                paginationControls.appendChild(createPageBtn(i));
+            }
+            
+            if (current_page < total_pages - 2) paginationControls.appendChild(createDots());
+            paginationControls.appendChild(createPageBtn(total_pages));
+        }
+        
+        // Next button
+        const nextBtn = document.createElement('button');
+        nextBtn.className = `w-8 h-8 flex items-center justify-center border rounded transition ${current_page === total_pages ? 'border-slate-100 dark:border-slate-800 opacity-50 cursor-not-allowed text-slate-300 dark:text-slate-600' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-700 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-600'}`;
+        nextBtn.innerHTML = '<span class="material-icons text-[18px]">chevron_right</span>';
+        nextBtn.disabled = current_page === total_pages;
+        nextBtn.onclick = () => { if (current_page < total_pages) { currentPage++; fetchReportHistory(currentPage, currentSearch); } };
+        paginationControls.appendChild(nextBtn);
+    }
+
+    // ============================================================
+    // HÀM XỬ LÝ TẠO BÁO CÁO (GỌI API THỰC)
+    // ============================================================
+    async function handleGenerateReport(btn) {
         const originalText = btn.innerHTML;
         btn.innerHTML = '<span class="material-icons animate-spin text-[18px]">autorenew</span> Đang xử lý...';
         btn.disabled = true;
         btn.classList.add('opacity-70');
-
-        setTimeout(() => {
-            showToast('success', 'Thành công', 'Báo cáo đang được xử lý ngầm. File sẽ xuất hiện ở bảng Lịch sử khi hoàn tất.');
+        
+        // Lấy giá trị từ form
+        const reportTypeSelect = document.querySelector('select');
+        const dateInputs = document.querySelectorAll('input[type="date"]');
+        const formatBtn = document.querySelector('.format-btn.active');
+        
+        const reportType = reportTypeSelect ? reportTypeSelect.value : 'tong_hop';
+        const tuNgay = dateInputs[0] ? dateInputs[0].value : '';
+        const denNgay = dateInputs[1] ? dateInputs[1].value : '';
+        const dinhDang = formatBtn ? formatBtn.dataset.format.toUpperCase() : 'XLSX';
+        
+        // Map loại báo cáo
+        const loaiBaoCaoMap = {
+            'Báo cáo theo lớp học': 'theo_lop',
+            'Báo cáo theo môn học': 'theo_mon',
+            'Báo cáo tổng hợp kỳ thi': 'tong_hop'
+        };
+        
+        try {
+            const response = await fetch('../api/export_report.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    loai_bao_cao: loaiBaoCaoMap[reportType] || 'tong_hop',
+                    tu_ngay: tuNgay,
+                    den_ngay: denNgay,
+                    dinh_dang: dinhDang
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showToast('success', 'Thành công', `Báo cáo "${result.data.filename}" đã được tạo thành công!`);
+                // Refresh bảng dữ liệu
+                fetchReportHistory(1, currentSearch);
+            } else {
+                showToast('error', 'Lỗi', result.message || 'Không thể tạo báo cáo');
+            }
+        } catch (error) {
+            console.error('Error generating report:', error);
+            showToast('error', 'Lỗi kết nối', 'Không thể kết nối với máy chủ');
+        } finally {
             btn.innerHTML = originalText;
             btn.disabled = false;
             btn.classList.remove('opacity-70');
-        }, 1500);
+        }
     }
 
-    /* =================================================================
-       SỰ KIỆN KHỞI TẠO (DOM Content Loaded)
-       ================================================================= */
+    // ============================================================
+    // HÀM TÌM KIẾM (DEBOUNCE)
+    // ============================================================
+    let searchTimeout;
+    function handleSearch(value) {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            currentSearch = value;
+            currentPage = 1;
+            fetchReportHistory(currentPage, currentSearch);
+        }, 300);
+    }
+
+    // ============================================================
+    // SỰ KIỆN KHỞI TẠO (DOM Content Loaded)
+    // ============================================================
     document.addEventListener('DOMContentLoaded', function () {
 
         // 1. Chức năng Dark Mode
@@ -401,131 +689,52 @@ include 'components/sidebar.php';
         const formatBtns = document.querySelectorAll('.format-btn');
         formatBtns.forEach(btn => {
             btn.addEventListener('click', function () {
-                // Reset tất cả nút
                 formatBtns.forEach(b => {
                     b.classList.remove('border-[#254ada]', 'bg-blue-50', 'text-[#254ada]', 'dark:bg-[#254ada]/20', 'dark:text-[#4b6bfb]');
                     b.classList.add('border-slate-200', 'bg-white', 'text-slate-600', 'dark:border-slate-600', 'dark:bg-slate-800', 'dark:text-slate-400');
                 });
-                // Kích hoạt nút được bấm
                 this.classList.remove('border-slate-200', 'bg-white', 'text-slate-600', 'dark:border-slate-600', 'dark:bg-slate-800', 'dark:text-slate-400');
                 this.classList.add('border-[#254ada]', 'bg-blue-50', 'text-[#254ada]', 'dark:bg-[#254ada]/20', 'dark:text-[#4b6bfb]');
             });
         });
 
-        // 4. Logic Tìm kiếm & Phân trang thông minh cho bảng Lịch sử
-        const rowsPerPage = 3;
-        let currentPage = 1;
-        const allRows = Array.from(document.querySelectorAll('.history-row'));
-        let filteredRows = [...allRows];
-
-        const paginationInfo = document.getElementById('paginationInfo');
-        const paginationControls = document.getElementById('paginationControls');
+        // 4. Tìm kiếm
         const searchInput = document.getElementById('searchHistory');
-
-        function updatePagination() {
-            // Giả lập tổng số báo cáo lớn
-            const isDemoMode = true;
-            const fakeTotalPages = 10;
-            const fakeTotalRows = 28;
-
-            const totalRows = filteredRows.length;
-            let totalPages = Math.ceil(totalRows / rowsPerPage) || 1;
-
-            if (isDemoMode && searchInput && searchInput.value.trim() === '') {
-                totalPages = fakeTotalPages;
-            }
-
-            if (currentPage > totalPages) currentPage = totalPages;
-            if (currentPage < 1) currentPage = 1;
-
-            const start = (currentPage - 1) * rowsPerPage;
-            const end = start + rowsPerPage;
-
-            allRows.forEach(row => row.style.display = 'none');
-            if (currentPage === 1 || !isDemoMode || (searchInput && searchInput.value.trim() !== '')) {
-                filteredRows.slice(start, end).forEach(row => row.style.display = '');
-            }
-
-            let displayStart = totalRows === 0 ? 0 : start + 1;
-            let displayEnd = Math.min(end, (isDemoMode && searchInput && searchInput.value.trim() === '') ? fakeTotalRows : totalRows);
-            let displayTotal = (isDemoMode && searchInput && searchInput.value.trim() === '') ? fakeTotalRows : totalRows;
-
-            if (paginationInfo) {
-                paginationInfo.innerHTML = `Hiển thị <span class="font-medium text-slate-800 dark:text-white">${displayStart} - ${displayEnd}</span> trong tổng số <span class="font-medium text-slate-800 dark:text-white">${displayTotal}</span> báo cáo`;
-            }
-
-            if (paginationControls) {
-                paginationControls.innerHTML = '';
-
-                // Prev Button
-                const prevBtn = document.createElement('button');
-                prevBtn.className = `w-8 h-8 flex items-center justify-center border rounded transition ${currentPage === 1 ? 'border-slate-100 dark:border-slate-800 opacity-50 cursor-not-allowed text-slate-300 dark:text-slate-600' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-700 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-600'}`;
-                prevBtn.innerHTML = '<span class="material-icons text-[18px]">chevron_left</span>';
-                prevBtn.disabled = currentPage === 1;
-                prevBtn.onclick = () => { if (currentPage > 1) { currentPage--; updatePagination(); } };
-                paginationControls.appendChild(prevBtn);
-
-                const createPageBtn = (i) => {
-                    const btn = document.createElement('button');
-                    if (i === currentPage) {
-                        btn.className = 'w-8 h-8 flex items-center justify-center bg-[#254ada] text-white rounded font-medium shadow-sm transition transform scale-105';
-                    } else {
-                        btn.className = 'w-8 h-8 flex items-center justify-center bg-white dark:bg-slate-800 border border-transparent hover:bg-slate-50 dark:hover:bg-slate-700 rounded font-medium text-slate-600 dark:text-slate-300 transition';
-                    }
-                    btn.innerText = i;
-                    btn.onclick = () => { currentPage = i; updatePagination(); };
-                    return btn;
-                };
-
-                const createDots = () => {
-                    const span = document.createElement('span');
-                    span.className = 'text-slate-400 px-1 tracking-widest text-xs';
-                    span.innerText = '...';
-                    return span;
-                };
-
-                if (totalPages <= 5) {
-                    for (let i = 1; i <= totalPages; i++) paginationControls.appendChild(createPageBtn(i));
-                } else {
-                    paginationControls.appendChild(createPageBtn(1));
-                    if (currentPage > 3) paginationControls.appendChild(createDots());
-
-                    let startPage = Math.max(2, currentPage - 1);
-                    let endPage = Math.min(totalPages - 1, currentPage + 1);
-
-                    if (currentPage === 1) endPage = 3;
-                    if (currentPage === totalPages) startPage = totalPages - 2;
-
-                    for (let i = startPage; i <= endPage; i++) {
-                        paginationControls.appendChild(createPageBtn(i));
-                    }
-
-                    if (currentPage < totalPages - 2) paginationControls.appendChild(createDots());
-                    paginationControls.appendChild(createPageBtn(totalPages));
-                }
-
-                // Next Button
-                const nextBtn = document.createElement('button');
-                nextBtn.className = `w-8 h-8 flex items-center justify-center border rounded transition ${currentPage === totalPages ? 'border-slate-100 dark:border-slate-800 opacity-50 cursor-not-allowed text-slate-300 dark:text-slate-600' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-700 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-600'}`;
-                nextBtn.innerHTML = '<span class="material-icons text-[18px]">chevron_right</span>';
-                nextBtn.disabled = currentPage === totalPages;
-                nextBtn.onclick = () => { if (currentPage < totalPages) { currentPage++; updatePagination(); } };
-                paginationControls.appendChild(nextBtn);
-            }
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => handleSearch(e.target.value));
         }
 
-        function applyFilters() {
-            const text = searchInput ? searchInput.value.toLowerCase() : '';
-            filteredRows = allRows.filter(row => {
-                const name = row.querySelector('.r-name').textContent.toLowerCase();
-                return name.includes(text);
+        // 5. Nút làm mới
+        const refreshBtn = document.querySelector('button[onclick*="showToast"]');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => {
+                fetchReportHistory(1, currentSearch);
             });
-            currentPage = 1;
-            updatePagination();
         }
 
-        if (searchInput) searchInput.addEventListener('input', applyFilters);
+        // 6. Nút đặt lại form
+        const resetBtn = document.querySelector('button:text("Đặt lại")');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => {
+                const selects = document.querySelectorAll('select');
+                const dates = document.querySelectorAll('input[type="date"]');
+                if (selects[0]) selects[0].selectedIndex = 0;
+                dates.forEach(d => d.value = '');
+            });
+        }
 
-        updatePagination();
+        // 7. Load dữ liệu ban đầu từ PHP (server-side rendering)
+        if (reportData && reportData.success && reportData.data && reportData.data.length > 0) {
+            renderReportTable(reportData.data);
+            renderPagination(reportData.pagination);
+        } else if (reportData && reportData.error) {
+            // Hiển thị lỗi nếu có
+            showToast('error', 'Lỗi dữ liệu', reportData.error);
+            // Vẫn gọi API để thử lại
+            fetchReportHistory(1, '');
+        } else {
+            // Load từ API nếu không có dữ liệu server-side
+            fetchReportHistory(1, '');
+        }
     });
 </script>

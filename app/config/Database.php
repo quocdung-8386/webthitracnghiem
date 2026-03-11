@@ -21,7 +21,7 @@ class Database {
                     );
                     self::$instance->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
                 } catch (PDOException $e2) {
-                    die("Lỗi kết nối CSDL: Máy chủ từ chối kết nối ở cả 2 cổng 3306 và 3307.");
+                    throw new PDOException("Không thể kết nối CSDL. Vui lòng kiểm tra XAMPP MySQL đang chạy.");
                 }
             }
         }

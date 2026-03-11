@@ -1,72 +1,294 @@
 <?php
+/**
+ * PHÂN TÍCH HỌC THUẬT
+ * File: UI/admin/phantichhocthuat.php
+ * 
+ * Chức năng: Thống kê và phân tích chất lượng câu hỏi dựa trên dữ liệu thật từ database
+ * Bao gồm: Top câu hỏi khó, tỷ lệ đúng/sai/bỏ qua, đánh giá độ khó
+ * 
+ * @author: Admin
+ * @last_modified: 2026
+ */
+
 // 1. Cấu hình thông tin trang
 $title = "Phân tích Học thuật - Hệ Thống Thi Trực Tuyến";
-$active_menu = "academic"; // Bạn nhớ thêm id này vào file sidebar.php nhé
+$active_menu = "academic";
 
-// Dữ liệu mô phỏng Top 10 câu hỏi khó nhất (Đã thêm class Dark mode)
-$top_difficult = [
-    ['id' => 'Q-8821', 'desc' => '"Ma trận nghịch đảo bậc n..."', 'rate' => '82%', 'width' => '82%', 'color' => 'bg-red-600', 'text' => 'text-red-600 dark:text-red-400'],
-    ['id' => 'Q-7712', 'desc' => '"Tích phân mặt loại 2..."', 'rate' => '75%', 'width' => '75%', 'color' => 'bg-red-500', 'text' => 'text-red-500 dark:text-red-400'],
-    ['id' => 'Q-9034', 'desc' => '"Định luật bảo toàn năng lượng..."', 'rate' => '68%', 'width' => '68%', 'color' => 'bg-orange-500', 'text' => 'text-orange-500 dark:text-orange-400'],
-    ['id' => 'Q-1290', 'desc' => '"Cấu trúc If-Else lồng nhau..."', 'rate' => '62%', 'width' => '62%', 'color' => 'bg-orange-400', 'text' => 'text-orange-500 dark:text-orange-400'],
-    ['id' => 'Q-5543', 'desc' => '"Thì quá khứ hoàn thành tiếp diễn..."', 'rate' => '55%', 'width' => '55%', 'color' => 'bg-yellow-400', 'text' => 'text-yellow-600 dark:text-yellow-400'],
-];
+// Kết nối database
+require_once __DIR__ . '/../../app/config/Database.php';
+$conn = Database::getConnection();
 
-// Dữ liệu mô phỏng Chi tiết thống kê (Đã thêm class Dark mode)
-$question_stats = [
-    [
-        'id' => 'Q-2201',
-        'content' => 'Giải phương trình bậc 2 có tham số m...',
-        'subject' => 'Toán học - Giải tích - Mức: Khó',
-        'count' => '1,240',
-        'correct' => '18.5%',
-        'correct_w' => '18.5%',
-        'c_color' => 'bg-red-500',
-        'c_text' => 'text-red-600 dark:text-red-400',
-        'skip' => '35.2%',
-        'eval' => 'QUÁ KHÓ',
-        'eval_bg' => 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400'
-    ],
-    [
-        'id' => 'Q-1105',
-        'content' => 'Lựa chọn từ thích hợp điền vào chỗ trống...',
-        'subject' => 'Tiếng Anh - Grammar - Mức: TB',
-        'count' => '5,420',
-        'correct' => '72.1%',
-        'correct_w' => '72.1%',
-        'c_color' => 'bg-green-500',
-        'c_text' => 'text-green-600 dark:text-green-400',
-        'skip' => '2.5%',
-        'eval' => 'ỔN ĐỊNH',
-        'eval_bg' => 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 border border-green-100 dark:border-green-800/50'
-    ],
-    [
-        'id' => 'Q-3094',
-        'content' => 'Tính động năng của vật rơi tự do tại...',
-        'subject' => 'Vật lý - Cơ học - Mức: TB',
-        'count' => '850',
-        'correct' => '54.0%',
-        'correct_w' => '54.0%',
-        'c_color' => 'bg-orange-400',
-        'c_text' => 'text-orange-500 dark:text-orange-400',
-        'skip' => '12.8%',
-        'eval' => 'BÌNH THƯỜNG',
-        'eval_bg' => 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-    ],
-    [
-        'id' => 'Q-0412',
-        'content' => 'Câu hỏi trắc nghiệm tâm lý học đại cương...',
-        'subject' => 'Tâm lý học - Đại cương - Mức: Dễ',
-        'count' => '9,812',
-        'correct' => '92.4%',
-        'correct_w' => '92.4%',
-        'c_color' => 'bg-[#254ada] dark:bg-[#4b6bfb]',
-        'c_text' => 'text-[#254ada] dark:text-[#4b6bfb]',
-        'skip' => '0.8%',
-        'eval' => 'QUÁ DỄ',
-        'eval_bg' => 'bg-blue-50 dark:bg-blue-900/30 text-[#254ada] dark:text-[#4b6bfb]'
-    ],
-];
+// Khởi tạo biến lưu trữ dữ liệu
+$top_difficult = [];
+$question_stats = [];
+$error_message = '';
+$total_questions = 0;
+$total_answered = 0;
+
+// ============================================================
+// HÀM XỬ LÝ ĐÁNH GIÁ ĐỘ KHÓ CÂU HỎI
+// ============================================================
+function evaluateDifficulty($correct_rate) {
+    if ($correct_rate < 20) {
+        return [
+            'eval' => 'QUÁ KHÓ',
+            'bg' => 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+        ];
+    } elseif ($correct_rate < 50) {
+        return [
+            'eval' => 'KHÓ',
+            'bg' => 'bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'
+        ];
+    } elseif ($correct_rate < 80) {
+        return [
+            'eval' => 'BÌNH THƯỜNG',
+            'bg' => 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+        ];
+    } else {
+        return [
+            'eval' => 'QUÁ DỄ',
+            'bg' => 'bg-blue-50 dark:bg-blue-900/30 text-[#254ada] dark:text-[#4b6bfb]'
+        ];
+    }
+}
+
+// ============================================================
+// TRUY VẤN DỮ LIỆU VỚI XỬ LÝ LỖI
+// ============================================================
+
+try {
+    
+    // ============================================================
+    // 1. TOP 10 CÂU HỎI KHÓ NHẤT
+    // Query: Tính tỷ lệ (sai + bỏ qua) / tổng số lần xuất hiện
+    // ============================================================
+    
+    $stmt = $conn->query("
+        SELECT 
+            ch.ma_cau_hoi,
+            ch.noi_dung,
+            COUNT(ctbl.ma_chi_tiet) as so_luot_xuat_hien,
+            -- Đếm số câu trả lời sai (không đúng và không null)
+            SUM(CASE 
+                WHEN da_dung.ma_dap_an IS NOT NULL 
+                     AND ctbl.ma_dap_an_chon IS NOT NULL 
+                     AND da_dung.ma_dap_an != ctbl.ma_dap_an_chon 
+                THEN 1 ELSE 0 
+            END) as so_cau_sai,
+            -- Đếm số câu bỏ qua (null)
+            SUM(CASE WHEN ctbl.ma_dap_an_chon IS NULL THEN 1 ELSE 0 END) as so_bo_qua,
+            -- Tổng số lần sai hoặc bỏ qua
+            SUM(CASE 
+                WHEN da_dung.ma_dap_an IS NOT NULL 
+                     AND (ctbl.ma_dap_an_chon IS NULL 
+                          OR da_dung.ma_dap_an != ctbl.ma_dap_an_chon)
+                THEN 1 ELSE 0 
+            END) as tong_sai_bo_qua,
+            -- Tỷ lệ sai/bỏ qua (càng cao càng khó)
+            ROUND(
+                CASE 
+                    WHEN COUNT(ctbl.ma_chi_tiet) > 0 THEN 
+                        SUM(CASE 
+                            WHEN da_dung.ma_dap_an IS NOT NULL 
+                                 AND (ctbl.ma_dap_an_chon IS NULL 
+                                      OR da_dung.ma_dap_an != ctbl.ma_dap_an_chon)
+                            THEN 1 ELSE 0 
+                        END) * 100.0 / COUNT(ctbl.ma_chi_tiet)
+                    ELSE 0 
+                END
+            , 1) as ty_le_sai_bo_qua
+        FROM cau_hoi ch
+        INNER JOIN dap_an da_dung ON ch.ma_cau_hoi = da_dung.ma_cau_hoi 
+            AND da_dung.la_dap_an_dung = 1
+        INNER JOIN chi_tiet_bai_lam ctbl ON ch.ma_cau_hoi = ctbl.ma_cau_hoi
+        INNER JOIN bai_lam bl ON ctbl.ma_bai_lam = bl.ma_bai_lam
+        WHERE bl.trang_thai IN ('da_nop', 'da_cham')
+        GROUP BY ch.ma_cau_hoi, ch.noi_dung
+        HAVING COUNT(ctbl.ma_chi_tiet) >= 5  -- Chỉ lấy câu hỏi có ít nhất 5 lượt trả lời
+        ORDER BY ty_le_sai_bo_qua DESC
+        LIMIT 10
+    ");
+    
+    $top_difficult_raw = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Xử lý dữ liệu top difficult để hiển thị
+    foreach ($top_difficult_raw as $item) {
+        $rate = floatval($item['ty_le_sai_bo_qua']);
+        $width = min($rate, 100);
+        
+        // Xác định màu sắc dựa trên tỷ lệ
+        if ($rate >= 80) {
+            $color = 'bg-red-600';
+            $text = 'text-red-600 dark:text-red-400';
+        } elseif ($rate >= 60) {
+            $color = 'bg-red-500';
+            $text = 'text-red-500 dark:text-red-400';
+        } elseif ($rate >= 40) {
+            $color = 'bg-orange-500';
+            $text = 'text-orange-500 dark:text-orange-400';
+        } elseif ($rate >= 30) {
+            $color = 'bg-orange-400';
+            $text = 'text-orange-500 dark:text-orange-400';
+        } else {
+            $color = 'bg-yellow-400';
+            $text = 'text-yellow-600 dark:text-yellow-400';
+        }
+        
+        // Cắt ngắn nội dung nếu quá dài
+        $desc = mb_strlen($item['noi_dung']) > 60 
+            ? mb_substr($item['noi_dung'], 0, 60) . '...' 
+            : $item['noi_dung'];
+        $desc = '"' . htmlspecialchars($desc) . '"';
+        
+        $top_difficult[] = [
+            'id' => 'Q-' . $item['ma_cau_hoi'],
+            'desc' => $desc,
+            'rate' => $rate . '%',
+            'width' => $width . '%',
+            'color' => $color,
+            'text' => $text
+        ];
+    }
+    
+    // ============================================================
+    // 2. CHI TIẾT THỐNG KÊ TỪNG CÂU HỎI
+    // Query: Lấy tất cả câu hỏi với thống kê chi tiết
+    // ============================================================
+    
+    $stmt = $conn->query("
+        SELECT 
+            ch.ma_cau_hoi,
+            ch.noi_dung,
+            ch.muc_do,
+            dm.ten_danh_muc,
+            COUNT(ctbl.ma_chi_tiet) as so_luot_xuat_hien,
+            -- Số câu đúng
+            SUM(CASE 
+                WHEN da_dung.ma_dap_an IS NOT NULL 
+                     AND ctbl.ma_dap_an_chon IS NOT NULL 
+                     AND da_dung.ma_dap_an = ctbl.ma_dap_an_chon 
+                THEN 1 ELSE 0 
+            END) as so_cau_dung,
+            -- Số câu sai
+            SUM(CASE 
+                WHEN da_dung.ma_dap_an IS NOT NULL 
+                     AND ctbl.ma_dap_an_chon IS NOT NULL 
+                     AND da_dung.ma_dap_an != ctbl.ma_dap_an_chon 
+                THEN 1 ELSE 0 
+            END) as so_cau_sai,
+            -- Số câu bỏ qua
+            SUM(CASE WHEN ctbl.ma_dap_an_chon IS NULL THEN 1 ELSE 0 END) as so_bo_qua,
+            -- Tỷ lệ đúng
+            ROUND(
+                CASE 
+                    WHEN COUNT(ctbl.ma_chi_tiet) > 0 THEN 
+                        SUM(CASE 
+                            WHEN da_dung.ma_dap_an IS NOT NULL 
+                                 AND ctbl.ma_dap_an_chon IS NOT NULL 
+                                 AND da_dung.ma_dap_an = ctbl.ma_dap_an_chon 
+                            THEN 1 ELSE 0 
+                        END) * 100.0 / COUNT(ctbl.ma_chi_tiet)
+                    ELSE 0 
+                END
+            , 1) as ty_le_dung,
+            -- Tỷ lệ bỏ qua
+            ROUND(
+                CASE 
+                    WHEN COUNT(ctbl.ma_chi_tiet) > 0 THEN 
+                        SUM(CASE WHEN ctbl.ma_dap_an_chon IS NULL THEN 1 ELSE 0 END) * 100.0 / COUNT(ctbl.ma_chi_tiet)
+                    ELSE 0 
+                END
+            , 1) as ty_le_bo_qua
+        FROM cau_hoi ch
+        LEFT JOIN danh_muc dm ON ch.ma_danh_muc = dm.ma_danh_muc
+        LEFT JOIN dap_an da_dung ON ch.ma_cau_hoi = da_dung.ma_cau_hoi 
+            AND da_dung.la_dap_an_dung = 1
+        LEFT JOIN chi_tiet_bai_lam ctbl ON ch.ma_cau_hoi = ctbl.ma_cau_hoi
+        LEFT JOIN bai_lam bl ON ctbl.ma_bai_lam = bl.ma_bai_lam
+            AND bl.trang_thai IN ('da_nop', 'da_cham')
+        GROUP BY ch.ma_cau_hoi, ch.noi_dung, ch.muc_do, dm.ten_danh_muc
+        ORDER BY ch.ma_cau_hoi DESC
+    ");
+    
+    $question_stats_raw = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Xử lý dữ liệu question stats
+    foreach ($question_stats_raw as $item) {
+        $correct_rate = floatval($item['ty_le_dung']);
+        $skip_rate = floatval($item['ty_le_bo_qua']);
+        $count = (int) $item['so_luot_xuat_hien'];
+        
+        // Xác định màu sắc cho tỷ lệ đúng
+        if ($correct_rate >= 80) {
+            $c_color = 'bg-green-500';
+            $c_text = 'text-green-600 dark:text-green-400';
+        } elseif ($correct_rate >= 50) {
+            $c_color = 'bg-orange-400';
+            $c_text = 'text-orange-500 dark:text-orange-400';
+        } elseif ($correct_rate >= 20) {
+            $c_color = 'bg-yellow-400';
+            $c_text = 'text-yellow-600 dark:text-yellow-400';
+        } else {
+            $c_color = 'bg-red-500';
+            $c_text = 'text-red-600 dark:text-red-400';
+        }
+        
+        // Lấy đánh giá
+        $eval_result = evaluateDifficulty($correct_rate);
+        
+        // Format subject
+        $subject = 'Chưa phân loại';
+        if (!empty($item['ten_danh_muc'])) {
+            $subject = htmlspecialchars($item['ten_danh_muc']);
+        }
+        if (!empty($item['muc_do'])) {
+            $muc_do_map = [
+                'de' => 'Dễ',
+                'tb' => 'TB', 
+                'kho' => 'Khó',
+                'rat_kho' => 'Rất khó'
+            ];
+            $muc_do_text = $muc_do_map[strtolower($item['muc_do'])] ?? $item['muc_do'];
+            $subject .= ' - Mức: ' . $muc_do_text;
+        }
+        
+        // Cắt ngắn nội dung nếu quá dài
+        $content = mb_strlen($item['noi_dung']) > 80 
+            ? mb_substr($item['noi_dung'], 0, 80) . '...' 
+            : $item['noi_dung'];
+        
+        $question_stats[] = [
+            'id' => 'Q-' . $item['ma_cau_hoi'],
+            'content' => htmlspecialchars($content),
+            'subject' => $subject,
+            'count' => number_format($count),
+            'correct' => $correct_rate . '%',
+            'correct_w' => min($correct_rate, 100) . '%',
+            'c_color' => $c_color,
+            'c_text' => $c_text,
+            'skip' => $skip_rate . '%',
+            'eval' => $eval_result['eval'],
+            'eval_bg' => $eval_result['bg']
+        ];
+    }
+    
+    // Tổng số câu hỏi đã thống kê
+    $total_questions = count($question_stats);
+    $total_answered = array_sum(array_column($question_stats_raw, 'so_luot_xuat_hien'));
+    
+    // Tính số câu cần điều chỉnh (tỷ lệ đúng < 10% hoặc bỏ qua > 40%)
+    $need_adjustment = 0;
+    foreach ($question_stats_raw as $item) {
+        if (floatval($item['ty_le_dung']) < 10 || floatval($item['ty_le_bo_qua']) > 40) {
+            $need_adjustment++;
+        }
+    }
+    
+} catch (PDOException $e) {
+    // Ghi log lỗi
+    error_log("Phân tích học thuật - Lỗi truy vấn: " . $e->getMessage());
+    $error_message = "Không thể tải dữ liệu phân tích. Vui lòng thử lại sau.";
+}
 
 // Nhúng Header và Sidebar
 include 'components/header.php';
@@ -110,9 +332,9 @@ include 'components/sidebar.php';
                             <a href="#"
                                 class="block px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 border-b border-slate-50 dark:border-slate-700 transition">
                                 <p class="text-[13px] text-slate-700 dark:text-slate-300 leading-snug">Hệ thống phát
-                                    hiện <span class="font-bold text-red-500">42 câu hỏi</span> cần được tinh chỉnh.</p>
+                                    hiện <span class="font-bold text-red-500"><?php echo $need_adjustment; ?> câu hỏi</span> cần được tinh chỉnh.</p>
                                 <span class="text-[11px] text-slate-400 mt-1.5 flex items-center gap-1"><span
-                                        class="material-icons text-[12px]">schedule</span> 30 phút trước</span>
+                                        class="material-icons text-[12px]">schedule</span> Vừa xong</span>
                             </a>
                         </div>
                     </div>
@@ -183,7 +405,17 @@ include 'components/sidebar.php';
                             <span class="material-icons bg-white/20 p-1 rounded-md text-[18px]">health_and_safety</span>
                             Chỉ số sức khỏe
                         </h3>
-                        <p class="text-5xl font-black mb-2 relative z-10">84.5%</p>
+                        <?php 
+                        // Tính chỉ số sức khỏe (tỷ lệ câu hỏi có tỷ lệ đúng >= 50%)
+                        $healthy_count = 0;
+                        foreach ($question_stats_raw as $item) {
+                            if (floatval($item['ty_le_dung']) >= 50) {
+                                $healthy_count++;
+                            }
+                        }
+                        $health_score = $total_questions > 0 ? round(($healthy_count / $total_questions) * 100, 1) : 0;
+                        ?>
+                        <p class="text-5xl font-black mb-2 relative z-10"><?php echo $health_score; ?>%</p>
                         <p class="text-[12px] text-blue-200 leading-relaxed mb-6 relative z-10">Độ tin cậy của ngân hàng
                             câu hỏi hiện tại</p>
 
@@ -194,7 +426,7 @@ include 'components/sidebar.php';
                             </div>
                             <div class="w-full bg-blue-900/50 rounded-full h-1.5 overflow-hidden">
                                 <div class="h-full bg-white rounded-full relative transition-all duration-1000"
-                                    style="width: 84.5%;">
+                                    style="width: <?php echo min($health_score, 100); ?>%;">
                                     <div
                                         class="absolute right-0 top-0 bottom-0 w-2 bg-blue-400 rounded-full blur-[1px]">
                                     </div>
@@ -208,11 +440,11 @@ include 'components/sidebar.php';
                         <h3 class="font-bold text-red-600 dark:text-red-500 flex items-center gap-2 text-sm mb-2">
                             <span class="material-icons text-[20px]">warning_amber</span> Cần điều chỉnh
                         </h3>
-                        <p class="text-4xl font-black text-slate-800 dark:text-white mb-1">42</p>
+                        <p class="text-4xl font-black text-slate-800 dark:text-white mb-1"><?php echo $need_adjustment; ?></p>
                         <p class="text-[12px] text-slate-500 dark:text-slate-400 leading-relaxed mb-4">Câu hỏi có tỷ lệ
                             đúng < 10% hoặc bỏ qua> 40%</p>
                         <button
-                            onclick="showToast('warning', 'Hệ thống đang quét', 'Đang trích xuất danh sách 42 câu hỏi cần điều chỉnh để đánh giá lại.')"
+                            onclick="showToast('warning', 'Hệ thống đang quét', 'Đang trích xuất danh sách <?php echo $need_adjustment; ?> câu hỏi cần điều chỉnh để đánh giá lại.')"
                             class="w-full py-2 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-500 dark:hover:bg-red-600 hover:text-white dark:hover:text-white rounded-lg text-[13px] font-bold transition">
                             Kiểm tra ngay
                         </button>

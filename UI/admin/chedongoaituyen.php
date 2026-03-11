@@ -3,39 +3,70 @@
 $title = "Chế độ ngoại tuyến - Hệ Thống Thi Trực Tuyến";
 $active_menu = "offline"; // Biến này dùng để làm sáng menu "Chế độ ngoại tuyến" trong Sidebar
 
-// Dữ liệu mô phỏng cho bảng Lịch sử đồng bộ
-$sync_history = [
-    [
-        'time' => '14:20 - 24/10',
-        'student' => 'Nguyễn Văn An',
-        'id' => 'SV2023001',
-        'exam' => 'Thi cuối kỳ CNTT',
-        'status' => 'Thành công',
-        'status_bg' => 'bg-green-50 dark:bg-green-900/30',
-        'status_text' => 'text-green-600 dark:text-green-400',
-        'icon' => 'visibility'
-    ],
-    [
-        'time' => '14:15 - 24/10',
-        'student' => 'Trần Thị Hoa',
-        'id' => 'SV2023042',
-        'exam' => 'Kiểm tra tiếng Anh K19',
-        'status' => 'Đang xử lý',
-        'status_bg' => 'bg-orange-50 dark:bg-orange-900/30',
-        'status_text' => 'text-orange-500 dark:text-orange-400',
-        'icon' => 'visibility'
-    ],
-    [
-        'time' => '13:45 - 24/10',
-        'student' => 'Lê Hoàng Minh',
-        'id' => 'SV2023115',
-        'exam' => 'Kinh tế học đại cương',
-        'status' => 'Lỗi gói tin',
-        'status_bg' => 'bg-red-50 dark:bg-red-900/30',
-        'status_text' => 'text-red-500 dark:text-red-400',
-        'icon' => 'refresh'
-    ],
-];
+// Kết nối Database và lấy dữ liệu thật
+require_once __DIR__ . '/../../app/config/Database.php';
+$conn = Database::getConnection();
+
+// Query lấy dữ liệu lịch sử đồng bộ từ database
+$sql = "
+    SELECT 
+        bl.thoi_diem_nop,
+        nd.ho_ten as ten_thi_sinh,
+        nd.ma_nguoi_dung,
+        dt.tieu_de as ten_ky_thi,
+        bl.trang_thai as trang_thai_bai_lam
+    FROM bai_lam bl
+    INNER JOIN nguoi_dung nd ON bl.ma_nguoi_dung = nd.ma_nguoi_dung
+    INNER JOIN ca_thi ct ON bl.ma_ca_thi = ct.ma_ca_thi
+    INNER JOIN de_thi dt ON ct.ma_de_thi = dt.ma_de_thi
+    ORDER BY bl.thoi_diem_nop DESC
+    LIMIT 10
+";
+
+$stmt = $conn->prepare($sql);
+$stmt->execute();
+$syncData = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Xử lý dữ liệu để phù hợp với giao diện
+$sync_history = [];
+
+foreach ($syncData as $row) {
+    // Format thời gian: H:i - d/m
+    $thoiGian = new DateTime($row['thoi_diem_nop']);
+    $timeFormatted = $thoiGian->format('H:i - d/m');
+    
+    // Map trạng thái từ bai_lam.trang_thai
+    $trangThai = $row['trang_thai_bai_lam'];
+    
+    if ($trangThai === 'da_nop') {
+        $status = 'Thành công';
+        $status_bg = 'bg-green-50 dark:bg-green-900/30';
+        $status_text = 'text-green-600 dark:text-green-400';
+        $icon = 'visibility';
+    } elseif ($trangThai === 'dang_lam') {
+        $status = 'Đang xử lý';
+        $status_bg = 'bg-orange-50 dark:bg-orange-900/30';
+        $status_text = 'text-orange-500 dark:text-orange-400';
+        $icon = 'visibility';
+    } else {
+        // lỗi hoặc NULL hoặc giá trị khác
+        $status = 'Lỗi gói tin';
+        $status_bg = 'bg-red-50 dark:bg-red-900/30';
+        $status_text = 'text-red-500 dark:text-red-400';
+        $icon = 'refresh';
+    }
+    
+    $sync_history[] = [
+        'time' => htmlspecialchars($timeFormatted),
+        'student' => htmlspecialchars($row['ten_thi_sinh']),
+        'id' => htmlspecialchars($row['ma_nguoi_dung']),
+        'exam' => htmlspecialchars($row['ten_ky_thi']),
+        'status' => $status,
+        'status_bg' => $status_bg,
+        'status_text' => $status_text,
+        'icon' => $icon
+    ];
+}
 
 // Nhúng Header và Sidebar
 include 'components/header.php';

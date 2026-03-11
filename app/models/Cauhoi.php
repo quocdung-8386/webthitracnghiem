@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../config/Database.php';
+require_once __DIR__ . '/../app/config/Database.php';
 
 class Cauhoi {
     private $db;

@@ -1,7 +1,194 @@
 <?php
+/**
+ * THỐNG KÊ KẾT QUẢ THI
+ * File: UI/admin/thongkeketqua.php
+ * 
+ * Chức năng: Thống kê tổng quan kết quả thi trắc nghiệm
+ * Bao gồm: Tổng lượt thi, điểm TB, tỷ lệ đỗ, câu hỏi khó nhất, biểu đồ theo tháng
+ * 
+ * @author: Admin
+ * @last_modified: 2026
+ */
+
 // 1. Cấu hình thông tin trang
 $title = "Thống kê tổng quan - Hệ Thống Thi Trực Tuyến";
-$active_menu = "stat_result"; // Biến active menu ở thanh sidebar
+$active_menu = "stat_result";
+
+// Kết nối database
+require_once __DIR__ . '/../../app/config/Database.php';
+$conn = Database::getConnection();
+
+// Biến lưu trữ dữ liệu thống kê
+$tong_luot_thi = 0;
+$diem_trung_binh = 0;
+$ty_le_do = 0;
+$cau_hoi_kho_nhat = null;
+$monthly_data = [];
+$ky_thi_data = [];
+
+// ============================================================
+// TRUY VẤN DỮ LIỆU THỐNG KÊ VỚI XỬ LÝ LỖI
+// ============================================================
+
+try {
+    // 1. Tổng lượt thi - Đếm các bài đã nộp và đã chấm
+    $stmt = $conn->query("
+        SELECT COUNT(*) 
+        FROM bai_lam 
+        WHERE trang_thai IN ('da_nop', 'da_cham')
+    ");
+    $tong_luot_thi = (int) $stmt->fetchColumn();
+
+    // 2. Điểm trung bình - Tính trung bình cộng điểm các bài đã nộp
+    $stmt = $conn->query("
+        SELECT AVG(tong_diem) 
+        FROM bai_lam 
+        WHERE trang_thai IN ('da_nop', 'da_cham') 
+        AND tong_diem IS NOT NULL
+    ");
+    $diem_trung_binh = $stmt->fetchColumn();
+    $diem_trung_binh = $diem_trung_binh ? round((float) $diem_trung_binh, 2) : 0;
+
+    // 3. Tỷ lệ đỗ (điểm >= 5) - Tính phần trăm thí sinh đạt điểm liệt
+    $stmt_total = $conn->query("
+        SELECT COUNT(*) 
+        FROM bai_lam 
+        WHERE trang_thai IN ('da_nop', 'da_cham') 
+        AND tong_diem IS NOT NULL
+    ");
+    $total_exams = (int) $stmt_total->fetchColumn();
+
+    $stmt_pass = $conn->query("
+        SELECT COUNT(*) 
+        FROM bai_lam 
+        WHERE trang_thai IN ('da_nop', 'da_cham') 
+        AND tong_diem >= 5
+    ");
+    $pass_exams = (int) $stmt_pass->fetchColumn();
+
+    // Tránh chia cho 0
+    $ty_le_do = $total_exams > 0 ? round(($pass_exams / $total_exams) * 100, 1) : 0;
+
+    // 4. Câu hỏi khó nhất (tỷ lệ sai cao nhất)
+    // Query tối ưu: JOIN đúng bảng, xử lý NULL, tránh chia cho 0
+    $stmt = $conn->query("
+        SELECT 
+            ch.ma_cau_hoi,
+            ch.noi_dung,
+            COUNT(ctbl.ma_chi_tiet) as so_luot_tra_loi,
+            SUM(CASE 
+                WHEN da_dung.ma_dap_an IS NULL OR ctbl.ma_dap_an_chon IS NULL THEN 0
+                WHEN da_dung.ma_dap_an != ctbl.ma_dap_an_chon THEN 1 
+                ELSE 0 
+            END) as so_cau_sai,
+            ROUND(
+                CASE 
+                    WHEN COUNT(ctbl.ma_chi_tiet) > 0 THEN 
+                        SUM(CASE 
+                            WHEN da_dung.ma_dap_an IS NULL OR ctbl.ma_dap_an_chon IS NULL THEN 0
+                            WHEN da_dung.ma_dap_an != ctbl.ma_dap_an_chon THEN 1 
+                            ELSE 0 
+                        END) / COUNT(ctbl.ma_chi_tiet) * 100 
+                    ELSE 0 
+                END
+            , 1) as ti_le_sai
+        FROM cau_hoi ch
+        INNER JOIN dap_an da_dung ON ch.ma_cau_hoi = da_dung.ma_cau_hoi 
+            AND da_dung.la_dap_an_dung = 1
+        INNER JOIN chi_tiet_bai_lam ctbl ON ch.ma_cau_hoi = ctbl.ma_cau_hoi
+        INNER JOIN bai_lam bl ON ctbl.ma_bai_lam = bl.ma_bai_lam
+        WHERE bl.trang_thai IN ('da_nop', 'da_cham') 
+            AND ctbl.ma_dap_an_chon IS NOT NULL
+        GROUP BY ch.ma_cau_hoi, ch.noi_dung
+        HAVING COUNT(ctbl.ma_chi_tiet) >= 5
+        ORDER BY ti_le_sai DESC
+        LIMIT 1
+    ");
+    $cau_hoi_kho_nhat = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    // 5. Dữ liệu biểu đồ thí sinh theo tháng (12 tháng gần nhất)
+    $stmt = $conn->query("
+        SELECT 
+            MONTH(thoi_diem_nop) as thang,
+            COUNT(*) as so_luong
+        FROM bai_lam 
+        WHERE trang_thai IN ('da_nop', 'da_cham') 
+            AND thoi_diem_nop IS NOT NULL
+            AND thoi_diem_nop >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+        GROUP BY MONTH(thoi_diem_nop)
+        ORDER BY thang
+    ");
+    $monthly_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // 6. Dữ liệu kỳ thi gần đây - Thống kê chi tiết theo từng đề thi
+    $stmt = $conn->query("
+        SELECT 
+            dt.ma_de_thi,
+            dt.tieu_de as ten_ky_thi,
+            COUNT(bl.ma_bai_lam) as tong_luot_thi,
+            ROUND(AVG(CASE WHEN bl.tong_diem IS NOT NULL THEN bl.tong_diem ELSE 0 END), 1) as diem_trung_binh,
+            SUM(CASE WHEN bl.tong_diem >= 5 THEN 1 ELSE 0 END) as so_luot_do,
+            ROUND(
+                CASE 
+                    WHEN COUNT(bl.ma_bai_lam) > 0 THEN 
+                        SUM(CASE WHEN bl.tong_diem >= 5 THEN 1 ELSE 0 END) / COUNT(bl.ma_bai_lam) * 100 
+                    ELSE 0 
+                END
+            , 1) as ti_le_do
+        FROM de_thi dt
+        INNER JOIN ca_thi ct ON dt.ma_de_thi = ct.ma_de_thi
+        INNER JOIN bai_lam bl ON ct.ma_ca_thi = bl.ma_ca_thi
+        WHERE bl.trang_thai IN ('da_nop', 'da_cham')
+        GROUP BY dt.ma_de_thi, dt.tieu_de
+        ORDER BY ct.thoi_gian_bat_dau DESC
+        LIMIT 10
+    ");
+    $ky_thi_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+} catch (PDOException $e) {
+    // Ghi log lỗi nhưng không hiển thị chi tiết lỗi cho người dùng
+    error_log("Thống kê kết quả thi - Lỗi truy vấn: " . $e->getMessage());
+    
+    // Hiể $e->getn thị thông báo lỗi thân thiện
+    $error_message = "Không thể tải dữ liệu thống kê. Vui lòng thử lại sau.";
+}
+
+// ============================================================
+// XỬ LÝ DỮ LIỆU BIỂU ĐỒ
+// ============================================================
+
+// Tìm max để tính chiều cao biểu đồ
+$max_count = 0;
+foreach ($monthly_data as $row) {
+    if ((int) $row['so_luong'] > $max_count) {
+        $max_count = (int) $row['so_luong'];
+    }
+}
+
+// Chuyển đổi dữ liệu tháng sang format biểu đồ
+$chart_data = [];
+$month_labels = ['T.1', 'T.2', 'T.3', 'T.4', 'T.5', 'T.6', 'T.7', 'T.8', 'T.9', 'T.10', 'T.11', 'T.12'];
+for ($i = 1; $i <= 12; $i++) {
+    $found = false;
+    foreach ($monthly_data as $row) {
+        if ((int) $row['thang'] == $i) {
+            $height = $max_count > 0 ? round(($row['so_luong'] / $max_count) * 100) : 0;
+            $chart_data[] = [
+                'label' => $month_labels[$i-1], 
+                'height' => $height . '%', 
+                'value' => (int) $row['so_luong']
+            ];
+            $found = true;
+            break;
+        }
+    }
+    if (!$found) {
+        $chart_data[] = ['label' => $month_labels[$i-1], 'height' => '0%', 'value' => 0];
+    }
+}
+
+// Format số hiển thị
+$tong_luot_thi_display = number_format($tong_luot_thi);
 
 // Nhúng Header và Sidebar
 include 'components/header.php';
@@ -70,6 +257,16 @@ include 'components/sidebar.php';
     <div class="flex-1 overflow-y-auto p-8 custom-scrollbar transition-colors duration-200">
         <div class="max-w-7xl mx-auto space-y-6">
 
+            <?php if (isset($error_message)): ?>
+            <!-- Hiển thị thông báo lỗi nếu có -->
+            <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4">
+                <div class="flex items-center gap-3">
+                    <span class="material-icons text-red-500">error_outline</span>
+                    <p class="text-sm text-red-600 dark:text-red-400"><?php echo htmlspecialchars($error_message); ?></p>
+                </div>
+            </div>
+            <?php endif; ?>
+
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div
                     class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-6 relative overflow-hidden transition-colors">
@@ -83,8 +280,8 @@ include 'components/sidebar.php';
                             này: +15%</span>
                     </div>
                     <p class="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-1">Tổng lượt thi</p>
-                    <p class="text-3xl font-black text-slate-800 dark:text-white mb-2">48,250</p>
-                    <p class="text-[11px] text-slate-400">Dữ liệu tính từ đầu năm 2024</p>
+                    <p class="text-3xl font-black text-slate-800 dark:text-white mb-2"><?php echo $tong_luot_thi_display; ?></p>
+                    <p class="text-[11px] text-slate-400">Dữ liệu tính từ đầu năm 2026</p>
                 </div>
 
                 <div
@@ -99,9 +296,9 @@ include 'components/sidebar.php';
                             10</span>
                     </div>
                     <p class="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-1">Điểm trung bình</p>
-                    <p class="text-3xl font-black text-slate-800 dark:text-white mb-2">7.42</p>
+                    <p class="text-3xl font-black text-slate-800 dark:text-white mb-2"><?php echo $diem_trung_binh; ?></p>
                     <div class="w-full h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden mt-3">
-                        <div class="h-full bg-orange-500 dark:bg-orange-400 rounded-full" style="width: 74.2%"></div>
+                        <div class="h-full bg-orange-500 dark:bg-orange-400 rounded-full" style="width: <?php echo $diem_trung_binh * 10; ?>%"></div>
                     </div>
                 </div>
 
@@ -117,7 +314,7 @@ include 'components/sidebar.php';
                             2%</span>
                     </div>
                     <p class="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-1">Tỷ lệ đỗ</p>
-                    <p class="text-3xl font-black text-slate-800 dark:text-white mb-2">82.5%</p>
+                    <p class="text-3xl font-black text-slate-800 dark:text-white mb-2"><?php echo $ty_le_do; ?>%</p>
                     <p class="text-[11px] text-slate-400">Dựa trên 5.0 điểm liệt</p>
                 </div>
 
@@ -130,9 +327,8 @@ include 'components/sidebar.php';
                         </div>
                     </div>
                     <p class="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-1">Câu hỏi khó nhất</p>
-                    <p class="text-2xl font-black text-slate-800 dark:text-white mb-2">ID: #Q-9942</p>
-                    <p class="text-[12px] text-slate-500 dark:text-slate-400">Tỷ lệ trả lời sai: <span
-                            class="font-bold text-red-500 dark:text-red-400">88%</span></p>
+                    <p class="text-2xl font-black text-slate-800 dark:text-white mb-2"><?php echo $cau_hoi_kho_nhat ? 'ID: #Q-' . $cau_hoi_kho_nhat['ma_cau_hoi'] : 'Chưa có dữ liệu'; ?></p>
+                    <p class="text-[12px] text-slate-500 dark:text-slate-400">Tỷ lệ trả lời sai: <span class="font-bold text-red-500 dark:text-red-400"><?php echo $cau_hoi_kho_nhat ? $cau_hoi_kho_nhat['ti_le_sai'] . '%' : 'N/A'; ?></span></p>
                 </div>
             </div>
 
@@ -144,11 +340,11 @@ include 'components/sidebar.php';
                             <h3 class="font-bold text-slate-800 dark:text-white text-[16px]">Xu hướng thí sinh tham gia
                             </h3>
                             <p class="text-[12px] text-slate-500 dark:text-slate-400">Thống kê theo từng tháng trong năm
-                                2024</p>
+                                2026</p>
                         </div>
                         <button
                             class="px-3 py-1.5 border border-slate-200 dark:border-slate-600 rounded text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition">Năm
-                            2024</button>
+                            2026</button>
                     </div>
 
                     <div class="flex-1 relative mt-4 min-h-[200px]">
@@ -171,16 +367,7 @@ include 'components/sidebar.php';
                         </div>
 
                         <div class="absolute inset-0 flex justify-between items-end pl-10 pr-4 pb-6 pt-2">
-                            <?php
-                            $chart_data = [
-                                ['label' => 'T.1', 'height' => '30%'],
-                                ['label' => 'T.2', 'height' => '45%'],
-                                ['label' => 'T.3', 'height' => '35%'],
-                                ['label' => 'T.4', 'height' => '65%'],
-                                ['label' => 'T.5', 'height' => '85%'],
-                                ['label' => 'T.6', 'height' => '40%']
-                            ];
-                            foreach ($chart_data as $data): ?>
+                            <?php foreach ($chart_data as $data): ?>
                                 <div class="flex flex-col items-center h-full justify-end w-10 relative group">
                                     <div class="w-2.5 bg-blue-100 dark:bg-blue-900/40 relative rounded-t-sm transition-all duration-300 group-hover:w-3"
                                         style="height: <?php echo $data['height']; ?>;">
@@ -259,60 +446,51 @@ include 'components/sidebar.php';
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 dark:divide-slate-700" id="tableBody">
-                            <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-700/50 transition data-row">
-                                <td class="px-6 py-4 font-bold text-slate-800 dark:text-white text-[13px] d-name">Kỳ thi
-                                    Tiếng Anh Chuyên ngành B1</td>
-                                <td class="px-6 py-4 text-center font-medium text-slate-600 dark:text-slate-300">1,250
-                                </td>
-                                <td class="px-6 py-4 text-center font-bold text-slate-800 dark:text-white">8.2</td>
-                                <td class="px-6 py-4">
-                                    <div class="flex items-center gap-3">
-                                        <div
-                                            class="flex-1 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                                            <div class="h-full bg-green-500 rounded-full" style="width: 92%"></div>
+                            <?php if (!empty($ky_thi_data)): ?>
+                                <?php foreach ($ky_thi_data as $ky_thi): ?>
+                                <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-700/50 transition data-row">
+                                    <td class="px-6 py-4 font-bold text-slate-800 dark:text-white text-[13px] d-name">
+                                        <?php echo htmlspecialchars($ky_thi['ten_ky_thi']); ?>
+                                    </td>
+                                    <td class="px-6 py-4 text-center font-medium text-slate-600 dark:text-slate-300">
+                                        <?php echo number_format($ky_thi['tong_luot_thi']); ?>
+                                    </td>
+                                    <td class="px-6 py-4 text-center font-bold text-slate-800 dark:text-white">
+                                        <?php echo htmlspecialchars($ky_thi['diem_trung_binh']); ?>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <div class="flex items-center gap-3">
+                                            <div
+                                                class="flex-1 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                                                <div class="h-full bg-green-500 rounded-full" style="width: <?php echo $ky_thi['ti_le_do']; ?>%"></div>
+                                            </div>
+                                            <span
+                                                class="text-[12px] font-bold text-slate-600 dark:text-slate-300"><?php echo $ky_thi['ti_le_do']; ?>%</span>
                                         </div>
-                                        <span
-                                            class="text-[12px] font-bold text-slate-600 dark:text-slate-300">92%</span>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 text-center">
-                                    <button
-                                        class="text-slate-400 hover:text-[#254ada] dark:hover:text-[#4b6bfb] transition"
-                                        title="Xem chi tiết"><span
-                                            class="material-icons text-[20px]">visibility</span></button>
-                                </td>
-                            </tr>
-
-                            <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-700/50 transition data-row">
-                                <td class="px-6 py-4 font-bold text-slate-800 dark:text-white text-[13px] d-name">Lý
-                                    thuyết Lập trình C++ nâng cao</td>
-                                <td class="px-6 py-4 text-center font-medium text-slate-600 dark:text-slate-300">840
-                                </td>
-                                <td class="px-6 py-4 text-center font-bold text-slate-800 dark:text-white">6.5</td>
-                                <td class="px-6 py-4">
-                                    <div class="flex items-center gap-3">
-                                        <div
-                                            class="flex-1 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                                            <div class="h-full bg-blue-500 rounded-full" style="width: 75%"></div>
-                                        </div>
-                                        <span
-                                            class="text-[12px] font-bold text-slate-600 dark:text-slate-300">75%</span>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 text-center">
-                                    <button
-                                        class="text-slate-400 hover:text-[#254ada] dark:hover:text-[#4b6bfb] transition"
-                                        title="Xem chi tiết"><span
-                                            class="material-icons text-[20px]">visibility</span></button>
-                                </td>
-                            </tr>
+                                    </td>
+                                    <td class="px-6 py-4 text-center">
+                                        <button
+                                            class="text-slate-400 hover:text-[#254ada] dark:hover:text-[#4b6bfb] transition"
+                                            title="Xem chi tiết"><span
+                                                class="material-icons text-[20px]">visibility</span></button>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-700/50 transition data-row">
+                                    <td colspan="5" class="px-6 py-8 text-center text-slate-500 dark:text-slate-400">
+                                        <span class="material-icons text-[40px] text-slate-300 dark:text-slate-600">info</span>
+                                        <p class="mt-2">Chưa có dữ liệu kỳ thi</p>
+                                    </td>
+                                </tr>
+                            <?php endif; ?>
                         </tbody>
                     </table>
                 </div>
 
                 <div
                     class="p-4 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between text-sm text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800 rounded-b-xl transition-colors">
-                    <p id="paginationInfo">Hiển thị 1 - 2 trên tổng số 45,800 bản ghi</p>
+                    <p id="paginationInfo">Hiển thị 1 - <?php echo count($ky_thi_data); ?> trên tổng số <?php echo count($ky_thi_data); ?> bản ghi</p>
                     <div id="paginationControls" class="flex items-center gap-1.5">
                     </div>
                 </div>
@@ -430,7 +608,7 @@ include 'components/sidebar.php';
         }
 
         // 3. Phân trang thông minh & Tìm kiếm
-        const rowsPerPage = 2; // Demo: Hiển thị 2 dòng mỗi trang
+        const rowsPerPage = 10;
         let currentPage = 1;
         const allRows = Array.from(document.querySelectorAll('.data-row'));
         let filteredRows = [...allRows];
@@ -440,17 +618,8 @@ include 'components/sidebar.php';
         const searchInput = document.getElementById('searchInput');
 
         function updatePagination() {
-            // GIẢ LẬP SỐ LƯỢNG LỚN ĐỂ HIỂN THỊ DẤU "..." (GIỐNG THIẾT KẾ)
-            const isDemoMode = true;
-            const fakeTotalPages = 458;
-            const fakeTotalRows = 45800;
-
             const totalRows = filteredRows.length;
             let totalPages = Math.ceil(totalRows / rowsPerPage) || 1;
-
-            if (isDemoMode && searchInput && searchInput.value.trim() === '') {
-                totalPages = fakeTotalPages;
-            }
 
             if (currentPage > totalPages) currentPage = totalPages;
             if (currentPage < 1) currentPage = 1;
@@ -460,14 +629,12 @@ include 'components/sidebar.php';
 
             // Ẩn/Hiện dòng
             allRows.forEach(row => row.style.display = 'none');
-            if (currentPage === 1 || !isDemoMode || (searchInput && searchInput.value.trim() !== '')) {
-                filteredRows.slice(start, end).forEach(row => row.style.display = '');
-            }
+            filteredRows.slice(start, end).forEach(row => row.style.display = '');
 
             // Cập nhật text hiển thị
             let displayStart = totalRows === 0 ? 0 : start + 1;
-            let displayEnd = Math.min(end, (isDemoMode && searchInput && searchInput.value.trim() === '') ? fakeTotalRows : totalRows);
-            let displayTotal = (isDemoMode && searchInput && searchInput.value.trim() === '') ? fakeTotalRows : totalRows;
+            let displayEnd = Math.min(end, totalRows);
+            let displayTotal = totalRows;
 
             if (paginationInfo) {
                 paginationInfo.innerHTML = `Hiển thị <span class="font-medium text-slate-800 dark:text-white">${displayStart} - ${displayEnd}</span> trên tổng số <span class="font-medium text-slate-800 dark:text-white">${displayTotal.toLocaleString()}</span> bản ghi`;
@@ -476,6 +643,8 @@ include 'components/sidebar.php';
             // Vẽ nút phân trang
             if (paginationControls) {
                 paginationControls.innerHTML = '';
+
+                if (totalRows === 0) return;
 
                 // Nút Prev
                 const prevBtn = document.createElement('button');
@@ -537,8 +706,9 @@ include 'components/sidebar.php';
         function applyFilters() {
             const text = searchInput ? searchInput.value.toLowerCase() : '';
             filteredRows = allRows.filter(row => {
-                const name = row.querySelector('.d-name').textContent.toLowerCase();
-                return name.includes(text);
+                const nameCell = row.querySelector('.d-name');
+                if (!nameCell) return false;
+                return nameCell.textContent.toLowerCase().includes(text);
             });
             currentPage = 1;
             updatePagination();
@@ -549,3 +719,4 @@ include 'components/sidebar.php';
         updatePagination();
     });
 </script>
+

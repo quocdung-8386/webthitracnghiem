@@ -127,6 +127,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_exam'])) {
 
 
 /* ================================
+   LẤY DANH SÁCH DANH MỤC
+================================ */
+$sqlDanhmuc = "SELECT ma_danh_muc, ten_danh_muc FROM danh_muc ORDER BY ten_danh_muc";
+$stmtDanhmuc = $conn->query($sqlDanhmuc);
+$danhmucs = $stmtDanhmuc->fetchAll(PDO::FETCH_ASSOC);
+
+/* ================================
    LẤY DANH SÁCH CHỦ ĐỀ
 ================================ */
 /* lấy danh sách chủ đề cho ma trận */
@@ -237,18 +244,11 @@ include 'components/sidebar.php';
             <span class="material-icons" id="darkModeIcon">dark_mode</span>
         </button>
 
-        <!-- Save button -->
-        <button type="submit" name="save_exam"
-            class="px-5 py-2 bg-[#254ada] dark:bg-[#4b6bfb] text-white rounded-lg flex items-center gap-2 hover:bg-[#1e3bb3] dark:hover:bg-[#254ada] text-sm font-medium shadow-sm transition ml-2">
-            <span class="material-icons text-[18px]">save</span>
-            Lưu đề thi
-        </button>
-
     </div>
 
 </header>
     <div class="flex-1 overflow-y-auto p-8 custom-scrollbar">
-    <form method="POST">
+    <form method="POST" id="examForm">
 <div class="max-w-5xl mx-auto space-y-6">
 
 <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-6 transition-colors">
@@ -474,6 +474,15 @@ class="matrix-input w-16 h-10 text-center bg-white dark:bg-slate-700 border bord
 </tr>
 
 <?php endforeach; ?>
+                        <!-- Dòng Tổng cộng -->
+                        <tr class="bg-slate-50 dark:bg-slate-700/50 font-bold">
+                            <td class="py-3 px-2 text-slate-700 dark:text-slate-200">TỔNG CỘNG</td>
+                            <td class="py-3 px-2 text-center text-green-600 dark:text-green-400" id="colEasyTotal">0</td>
+                            <td class="py-3 px-2 text-center text-orange-500 dark:text-orange-400" id="colMediumTotal">0</td>
+                            <td class="py-3 px-2 text-center text-red-500 dark:text-red-400" id="colHardTotal">0</td>
+                            <td class="py-3 px-2 text-center text-[#254ada] dark:text-[#4b6bfb]" id="grandTotal">0</td>
+                            <td class="py-3 px-2 text-center">-</td>
+                        </tr>
                     </table>
                 </div>
 
@@ -485,8 +494,18 @@ class="matrix-input w-16 h-10 text-center bg-white dark:bg-slate-700 border bord
                 </div>
             </div>
 
+            <!-- Nút Lưu đề thi -->
+            <div class="flex justify-end mt-6">
+                <button type="submit" name="save_exam"
+                    class="px-6 py-3 bg-[#254ada] dark:bg-[#4b6bfb] text-white rounded-lg flex items-center gap-2 hover:bg-[#1e3bb3] dark:hover:bg-[#254ada] text-sm font-medium shadow-sm transition">
+                    <span class="material-icons text-[18px]">save</span>
+                    Lưu đề thi
+                </button>
+            </div>
+
         </div>
     </div>
+    </form>
 </main>
 
 <div id="toastContainer" class="fixed top-5 right-5 z-[100] flex flex-col gap-3 pointer-events-none"></div>
