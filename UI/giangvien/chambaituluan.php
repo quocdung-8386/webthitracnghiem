@@ -118,7 +118,7 @@ $first_letter = strtoupper(substr(end($name_parts), 0, 1));
             </ul>
         </div>
         <div class="sidebar-footer">
-            <a href="../../logout.php" class="btn-logout-sidebar" style="color: #ef4444; font-weight: bold;">Đăng xuất</a>
+            <a href="../logout.php" class="btn-logout-sidebar" style="color: #ef4444; font-weight: bold;">Đăng xuất</a>
         </div>
     </aside>
 
