@@ -18,10 +18,9 @@ $thong_bao = "";
 // 2. XỬ LÝ LƯU ĐIỂM (Cập nhật thẳng vào DB)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] == 'cham_diem') {
     $ma_chi_tiet = $_POST['ma_chi_tiet'];
-    $diem = floatval($_POST['diem']);
+    $diem = floatval($_POST['diem']); 
     
     try {
-        // Cập nhật điểm cho câu tự luận đó trong bảng chi_tiet_bai_lam
         $stmt_update = $db->prepare("UPDATE chi_tiet_bai_lam SET diem = ? WHERE ma_chi_tiet = ?");
         $stmt_update->execute([$diem, $ma_chi_tiet]);
         $thong_bao = "success|Lưu điểm thành công cho bài thi này!";
@@ -32,15 +31,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
 // 3. TRUY VẤN LẤY BÀI TỰ LUẬN CHỜ CHẤM
 try {
-    // KẾT NỐI 6 BẢNG ĐỂ LẤY FULL THÔNG TIN (Sinh viên, Bài làm, Câu hỏi, Đề thi)
     $sql = "SELECT 
                 ct.ma_chi_tiet,
                 nd.ho_ten AS ten_sinh_vien,
                 nd.ten_dang_nhap AS ma_sinh_vien,
                 dt.tieu_de AS ten_de_thi,
-                b.thoi_gian_nop,
+                b.thoi_diem_nop,
                 ch.noi_dung AS cau_hoi,
-                ct.cau_tra_loi AS bai_lam,
+                ct.noi_dung_tu_luan AS bai_lam,
                 ct.diem
             FROM chi_tiet_bai_lam ct
             JOIN bai_lam b ON ct.ma_bai_lam = b.ma_bai_lam
@@ -50,15 +48,18 @@ try {
             JOIN de_thi dt ON c.ma_de_thi = dt.ma_de_thi
             WHERE ch.loai_cau_hoi = 'tu_luan' 
               AND dt.ma_giao_vien = ?
-            ORDER BY b.thoi_gian_nop DESC";
+            ORDER BY b.thoi_diem_nop DESC";
 
     $stmt = $db->prepare($sql);
     $stmt->execute([$ma_giao_vien]);
     $danhSachChoCham = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
-    $thong_bao = "error|Lỗi truy vấn dữ liệu. Hãy kiểm tra lại tên cột (VD: cau_tra_loi, thoi_gian_nop) trong Database! Chi tiết: " . $e->getMessage();
+    $thong_bao = "error|Lỗi truy vấn dữ liệu: " . $e->getMessage();
     $danhSachChoCham = [];
 }
+
+$name_parts = explode(' ', trim($ho_ten_gv));
+$first_letter = strtoupper(substr(end($name_parts), 0, 1));
 ?>
 
 <!DOCTYPE html>
@@ -66,7 +67,7 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chấm bài tự luận - EduQuiz</title>
+    <title>Chấm bài tự luận</title>
     <link rel="stylesheet" href="../../asset/css/giangvien.css">
     <style>
         .btn-grade { background-color: #ebf8ff; color: #3182ce; border: 1px solid #bee3f8; padding: 6px 12px; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; transition: 0.2s; }
@@ -113,7 +114,7 @@ try {
                 <li><a href="quanlynganhangcauhoi.php">Ngân hàng câu hỏi</a></li>
                 <li><a href="taodethi.php">Tạo & Thiết lập đề thi</a></li>
                 <li class="active"><a href="chambaituluan.php">Chấm bài tự luận</a></li>
-                <li><a href="xembaocaothongke.php">Thống kê & Báo cáo</a></li>
+                <li><a href="xembaocaothongke.php">Báo cáo & Thống kê</a></li>
             </ul>
         </div>
         <div class="sidebar-footer">
@@ -133,7 +134,7 @@ try {
                     <span style="font-size: 12px; color:#718096;">Giảng viên ra đề</span>
                 </div>
                 <div class="avatar" style="background: #2563eb; color: #fff; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 16px;">
-                    <?php echo strtoupper(substr(trim(end(explode(' ', $ho_ten_gv))), 0, 1)); ?>
+                    <?php echo $first_letter; ?>
                 </div>
             </div>
         </header>
@@ -177,7 +178,7 @@ try {
                                 </td>
                                 <td><span class="badge-subject"><?php echo htmlspecialchars($bai['ten_de_thi']); ?></span></td>
                                 <td style="color: #64748b; font-size: 13px;">
-                                    <?php echo date('d/m/Y H:i', strtotime($bai['thoi_gian_nop'])); ?>
+                                    <?php echo $bai['thoi_diem_nop'] ? date('d/m/Y H:i', strtotime($bai['thoi_diem_nop'])) : 'Chưa cập nhật'; ?>
                                 </td>
                                 <td>
                                     <?php if ($bai['diem'] === null || $bai['diem'] === ''): ?>
@@ -275,7 +276,6 @@ try {
 <script>
     const modal = document.getElementById('gradingModal');
 
-    // JS hứng dữ liệu từ nút bấm và bắn vào Kính lúp (Modal)
     function openGradingModal(btn) {
         document.getElementById('mdl_studentName').innerText = btn.getAttribute('data-name');
         document.getElementById('mdl_examName').innerText = btn.getAttribute('data-exam');
@@ -294,7 +294,6 @@ try {
         modal.style.display = 'none';
     }
 
-    // Click ra vùng tối để đóng
     window.onclick = function(event) {
         if (event.target == modal) {
             closeGradingModal();
@@ -303,4 +302,4 @@ try {
 </script>
 
 </body>
-</html> 
+</html>

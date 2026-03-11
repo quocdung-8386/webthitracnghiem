@@ -75,7 +75,7 @@ $nganHangCauHoi = $stmt_ch->fetchAll(PDO::FETCH_ASSOC);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tạo & Thiết lập Đề thi - EduQuiz</title>
+    <title>Tạo & Thiết lập Đề thi</title>
     <link rel="stylesheet" href="../../asset/css/giangvien.css">
     <style>
         .action-btn { background: none; border: none; font-size: 13px; font-weight: 600; cursor: pointer; margin-right: 5px; padding: 6px 12px; border-radius: 4px; transition: 0.2s; }
@@ -126,7 +126,7 @@ $nganHangCauHoi = $stmt_ch->fetchAll(PDO::FETCH_ASSOC);
                 <li><a href="quanlynganhangcauhoi.php">Ngân hàng câu hỏi</a></li>
                 <li class="active"><a href="taodethi.php">Tạo & Thiết lập đề thi</a></li> 
                 <li><a href="chambaituluan.php">Chấm bài tự luận</a></li>
-                <li><a href="xembaocaothongke.php">Thống kê & Báo cáo</a></li>
+                <li><a href="xembaocaothongke.php">Báo cáo & Thống kê</a></li>
             </ul>
         </div>
         <div class="sidebar-footer">
@@ -146,7 +146,7 @@ $nganHangCauHoi = $stmt_ch->fetchAll(PDO::FETCH_ASSOC);
                     <span style="font-size: 12px; color:#718096;">Giảng viên ra đề</span>
                 </div>
                 <div class="avatar" style="background: #2563eb; color: #fff; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 16px;">
-                    <?php echo strtoupper(substr(trim(end(explode(' ', $ho_ten_gv))), 0, 1)); ?>
+                    <?php $np = explode(' ', trim($ho_ten_gv)); echo strtoupper(substr(end($np), 0, 1)); ?>
                 </div>
             </div>
         </header>

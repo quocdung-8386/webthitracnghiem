@@ -56,7 +56,7 @@ $pctKho = isset($chartDataRaw['kho']) ? round(($chartDataRaw['kho'] / $totalChar
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tổng quan Dashboard - EduQuiz</title>
+    <title>Tổng quan Dashboard</title>
     <link rel="stylesheet" href="../../asset/css/giangvien.css">
     <style>
         .dash-icon-box { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 8px; font-weight: bold; font-size: 18px; }
@@ -97,7 +97,7 @@ $pctKho = isset($chartDataRaw['kho']) ? round(($chartDataRaw['kho'] / $totalChar
                 <li><a href="quanlynganhangcauhoi.php">Ngân hàng câu hỏi</a></li>
                 <li><a href="taodethi.php">Tạo & thiết lập đề thi</a></li>
                 <li><a href="chambaituluan.php">Chấm bài tự luận</a></li>
-                <li><a href="xembaocaothongke.php">Thống kê & Báo cáo</a></li>
+                <li><a href="xembaocaothongke.php">Báo cáo & Thống kê</a></li>
             </ul>
         </div>
         <div class="sidebar-footer">
@@ -117,7 +117,7 @@ $pctKho = isset($chartDataRaw['kho']) ? round(($chartDataRaw['kho'] / $totalChar
                         <span style="font-size: 12px; color:#718096;">Giảng viên ra đề</span>
                     </div>
                     <div class="avatar" style="background: #2563eb; color: #fff; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 16px;">
-                        <?php echo strtoupper(substr(trim(end(explode(' ', $ho_ten_gv))), 0, 1)); ?>
+                        <?php $np = explode(' ', trim($ho_ten_gv)); echo strtoupper(substr(end($np), 0, 1)); ?>
                     </div>
                 </div>
             </div>

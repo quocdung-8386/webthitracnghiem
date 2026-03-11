@@ -33,8 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $thong_bao = "error|Nội dung câu hỏi không được để trống!";
         } else {
             try {
-                $db->beginTransaction(); // Bắt đầu giao dịch an toàn
-
+                $db->beginTransaction();
                 if ($action === 'add') {
                     // Bước 1: Thêm câu hỏi
                     $stmt = $db->prepare("INSERT INTO cau_hoi (noi_dung, loai_cau_hoi, muc_do, ma_danh_muc, ma_giao_vien) VALUES (?, ?, ?, ?, ?)");
@@ -125,7 +124,7 @@ foreach ($allAnswers as $da) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ngân hàng câu hỏi - EduQuiz</title>
+    <title>Ngân hàng câu hỏi</title>
     <link rel="stylesheet" href="../../asset/css/giangvien.css">
     <style>
         .action-btn { background: none; border: none; font-size: 13px; font-weight: 600; cursor: pointer; margin-right: 5px; padding: 6px 12px; border-radius: 4px; transition: 0.2s; }
@@ -172,7 +171,7 @@ foreach ($allAnswers as $da) {
                 <li class="active"><a href="quanlynganhangcauhoi.php">Ngân hàng câu hỏi</a></li>
                 <li><a href="taodethi.php">Tạo & Thiết lập đề thi</a></li>
                 <li><a href="chambaituluan.php">Chấm bài tự luận</a></li>
-                <li><a href="xembaocaothongke.php">Thống kê & Báo cáo</a></li>
+                <li><a href="xembaocaothongke.php">Báo cáo & Thống kê</a></li>
             </ul>
         </div>
         <div class="sidebar-footer">
@@ -192,7 +191,7 @@ foreach ($allAnswers as $da) {
                     <span style="font-size: 12px; color:#718096;">Giảng viên ra đề</span>
                 </div>
                 <div class="avatar" style="background: #2563eb; color: #fff; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 16px;">
-                    <?php echo strtoupper(substr(trim(end(explode(' ', $ho_ten_gv))), 0, 1)); ?>
+                    <?php $np = explode(' ', trim($ho_ten_gv)); echo strtoupper(substr(end($np), 0, 1)); ?>
                 </div>
             </div>
         </header>
