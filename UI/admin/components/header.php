@@ -22,8 +22,8 @@
 
         /* Tùy chỉnh thanh cuộn cho mượt mà */
         .custom-scrollbar::-webkit-scrollbar {
-            width: 5px;
-            height: 5px;
+            width: 8px;
+            height: 8px;
         }
 
         .custom-scrollbar::-webkit-scrollbar-track {
@@ -31,12 +31,21 @@
         }
 
         .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(156, 163, 175, 0.5); /* Màu xám nhạt thay vì trắng mờ để thấy rõ trên nền sáng */
             border-radius: 10px;
         }
 
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.4);
+            background: rgba(107, 114, 128, 0.8);
+        }
+
+        /* Cho sidebar tĩnh màu bóng đêm, thanh cuộn vẫn sáng màu cũ */
+        aside .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2); 
+        }
+        
+        aside .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.4); 
         }
 
         /* Smooth transition cho menu accordion */

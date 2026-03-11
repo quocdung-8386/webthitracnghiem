@@ -176,14 +176,22 @@ $title = 'Đăng nhập - Hệ Thống Thi Trực Tuyến';
 
                 <div>
                     <label class="text-xs font-bold text-gray-400 uppercase">Mật khẩu</label>
-                    <input type="password" name="password" required
-                           class="w-full mt-2 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
-                           placeholder="••••••••">
+                    <div class="relative w-full mt-2">
+                        <input type="password" name="password" id="password" required
+                               class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none pr-12"
+                               placeholder="••••••••">
+                        <span class="material-icons absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer hover:text-blue-600 transition select-none" id="togglePassword">visibility</span>
+                    </div>
                 </div>
 
-                <div class="flex items-center space-x-2">
-                    <input type="checkbox" id="remember" class="w-4 h-4">
-                    <label for="remember" class="text-sm text-gray-500">Ghi nhớ đăng nhập</label>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <input type="checkbox" id="remember" class="w-4 h-4">
+                        <label for="remember" class="text-sm text-gray-500">Ghi nhớ đăng nhập</label>
+                    </div>
+                    <a href="forgot_password.php" class="text-sm text-blue-600 font-semibold hover:underline">
+                        Quên mật khẩu?
+                    </a>
                 </div>
 
                 <button type="submit"
@@ -207,6 +215,21 @@ $title = 'Đăng nhập - Hệ Thống Thi Trực Tuyến';
 <footer class="text-center py-6 text-gray-400 text-xs">
     © 2026 Hệ Thống Thi Trực Tuyến. All rights reserved.
 </footer>
+
+<script>
+    const togglePassword = document.getElementById('togglePassword');
+    const password = document.getElementById('password');
+
+    if (togglePassword && password) {
+        togglePassword.addEventListener('click', function () {
+            // Toggle the type attribute
+            const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+            password.setAttribute('type', type);
+            // Toggle the eye icon
+            this.textContent = type === 'password' ? 'visibility' : 'visibility_off';
+        });
+    }
+</script>
 
 </body>
 </html>
