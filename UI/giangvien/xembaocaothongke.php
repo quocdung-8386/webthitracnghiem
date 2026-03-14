@@ -92,7 +92,7 @@ $danhSachDiem = $stmt_details->fetchAll(PDO::FETCH_ASSOC);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thống kê & Báo cáo - EduQuiz</title>
+    <title>Thống kê & Báo cáo</title>
     <link rel="stylesheet" href="../../asset/css/giangvien.css">
     <style>
         .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }
@@ -141,7 +141,7 @@ $danhSachDiem = $stmt_details->fetchAll(PDO::FETCH_ASSOC);
             </ul>
         </div>
         <div class="sidebar-footer">
-            <a href="../../logout.php" class="btn-logout-sidebar" style="color: #ef4444; font-weight: bold;">Đăng xuất</a>
+            <a href="../logout.php" class="btn-logout-sidebar" style="color: #ef4444; font-weight: bold;">Đăng xuất</a>
         </div>
     </aside>
 
@@ -205,7 +205,7 @@ $danhSachDiem = $stmt_details->fetchAll(PDO::FETCH_ASSOC);
                     
                     <?php
                         $max_val = max($dist['kem'], $dist['trung_binh'], $dist['kha'], $dist['gioi']);
-                        $max_val = $max_val > 0 ? $max_val : 1; // Chống chia cho 0
+                        $max_val = $max_val > 0 ? $max_val : 1;
                         
                         $h_kem = ($dist['kem'] / $max_val) * 100;
                         $h_tb = ($dist['trung_binh'] / $max_val) * 100;
